@@ -24,15 +24,20 @@ arguments with that OS's paths.
 
 ## Step 0: Get the code
 
-```powershell
-git clone https://github.com/Project888-maker/hollow-hull.git
-cd hollow-hull
-git pull origin main
-$HH = (Get-Location).Path
-```
-If the repo is already cloned, `cd` into it and run only the last two lines.
+The user made `C:\Users\gasan\OneDrive\Desktop\hollow-hull` for this
+project. Clone the repo into it. Use the trailing `.` so the files go into that
+folder rather than a new subfolder.
 
-**Expect:** `$HH\CODEX_PHASE1.md` exists.
+```powershell
+$HH = "C:\Users\gasan\OneDrive\Desktop\hollow-hull"
+Set-Location $HH
+if (Test-Path "$HH\.git") { git pull origin main }
+elseif (-not (Get-ChildItem $HH -Force)) { git clone https://github.com/Project888-maker/hollow-hull.git . }
+else { Write-Host "Folder is not empty and is not a git clone: ask the user before touching it" }
+```
+
+**Expect:** `$HH\CODEX_PHASE1.md` exists. If the folder already held files,
+stop and ask the user. Do not delete or move them.
 
 ## Step 1: Find the tools
 
@@ -71,11 +76,14 @@ python "$HH\level\layout.py" "$HH\level\flooded_deck.json" "$HH\level\placements
 
 ## Step 4: Create the Unreal project
 
-Ask the user where to keep the project. The default is
-`$HOME\Documents\Unreal Projects\HollowHull`.
+**The Unreal project must not live in a OneDrive-synced folder** (Desktop
+and usually Documents are synced). OneDrive locks Unreal's cache files and
+uploads gigabytes. Use `C:\Projects\HollowHull` unless the user picks another
+non-synced path.
 
 ```powershell
-$PROJ = "$HOME\Documents\Unreal Projects\HollowHull"
+New-Item -ItemType Directory -Force "C:\Projects" | Out-Null
+$PROJ = "C:\Projects\HollowHull"
 python "$HH\tools\prepare_project.py" --engine "$UE" --dest "$PROJ"
 ```
 If the user already created a Third Person project, run this instead:

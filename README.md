@@ -25,6 +25,13 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 - Material instances (`/Game/HollowHull/Materials/MI_*`) are created once and
   never overwritten. Tune them or plug textures into them freely.
 
+## Where things live on the PC
+
+| What | Path |
+|---|---|
+| This repo (Codex's working copy) | `C:\Users\gasan\OneDrive\Desktop\hollow-hull` |
+| Unreal project (keep it out of OneDrive) | `C:\Projects\HollowHull` |
+
 ## Folders
 
 | Path | What it is |
