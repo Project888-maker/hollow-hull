@@ -110,7 +110,7 @@ Get-Content "$PROJ\Saved\HollowHull\setup_report.json"
 ```
 
 **Expect** in `setup_report.json`:
-- `"ok": true`
+- `"finished": true` and `"ok": true` (if Unreal closes early, `"stage"` shows where it stopped)
 - 21 entries under `"meshes"`, each with `collision_hulls_imported` equal to
   `collision_hulls_expected`
 - under `"spawned"`, these counts: SM_Wall 75, SM_Pillar 88, SM_Ceiling 46,

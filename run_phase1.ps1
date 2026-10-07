@@ -99,6 +99,32 @@ function Find-Unreal {
     Fail "Could not find Unreal Engine 5.7. Run again with -UnrealRoot `"C:\path\to\UE_5.7`""
 }
 
+function Show-UnrealLog {
+    # Copy Unreal's log (and newest crash report) into reports\phase1 and print the lines that matter.
+    $log = Join-Path $Project "Saved\Logs\HollowHull.log"
+    if (Test-Path $log) {
+        Copy-Item $log (Join-Path $LogDir "unreal_log.txt") -Force
+        $lines = Get-Content (Join-Path $LogDir "unreal_log.txt")
+        Say "`n--- Unreal log: [HH], fatal and error lines ---" "Yellow"
+        $lines | Select-String -Pattern '\[HH\]|Fatal|Assertion failed|Unhandled Exception|Error:' |
+            Select-Object -Last 50 | ForEach-Object { Write-Host $_.Line }
+        Say "--- Unreal log: last 20 lines ---" "Yellow"
+        $lines | Select-Object -Last 20 | ForEach-Object { Write-Host $_ }
+    } else {
+        Say "No Unreal log found at $log" "Yellow"
+    }
+    $crash = Get-ChildItem (Join-Path $Project "Saved\Crashes") -Directory -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($crash) {
+        $ctxFile = Join-Path $crash.FullName "CrashContext.runtime-xml"
+        if (Test-Path $ctxFile) {
+            Copy-Item $ctxFile (Join-Path $LogDir "crash_context.xml") -Force
+            $m = Select-String -Path $ctxFile -Pattern '<ErrorMessage>(.*?)</ErrorMessage>' | Select-Object -First 1
+            if ($m) { Say "Crash message: $($m.Matches[0].Groups[1].Value)" "Red" }
+        }
+    }
+}
+
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
 $BlenderExe = Find-Blender
@@ -154,21 +180,40 @@ Say "`n=== 5/5  Opening Unreal and building the level ==="
 $report = Join-Path $Project "Saved\HollowHull\setup_report.json"
 Remove-Item $report -ErrorAction SilentlyContinue
 $setup = Join-Path $HH "unreal\hh_setup.py"
-Start-Process -FilePath $UEEditor -ArgumentList "`"$uproject`" -ExecutePythonScript=`"$setup`""
+$proc = Start-Process -FilePath $UEEditor -ArgumentList "`"$uproject`" -ExecutePythonScript=`"$setup`"" -PassThru
 Say "Unreal is starting. The FIRST launch compiles shaders and can take 10-40 minutes." "Yellow"
-Say "Leave this window and the editor open. Waiting for the build report..." "Yellow"
+Say "Leave this window and the editor open. Waiting for the build to finish..." "Yellow"
 
 $deadline = (Get-Date).AddMinutes($UnrealTimeoutMinutes)
 $started = Get-Date
-while (-not (Test-Path $report)) {
-    if ((Get-Date) -gt $deadline) { Fail "No report after $UnrealTimeoutMinutes minutes. Is the Unreal editor still loading or showing a dialog?" }
-    Start-Sleep -Seconds 15
-    $mins = [int]((Get-Date) - $started).TotalMinutes
-    Write-Host "  still waiting... $mins min" -ForegroundColor DarkGray
+$lastStage = ""
+$r = $null
+$ticks = 0
+while ($true) {
+    if (Test-Path $report) {
+        try { $r = Get-Content $report -Raw | ConvertFrom-Json } catch { $r = $null }
+        if ($r) {
+            if ($r.stage -ne $lastStage) { Say "  build stage: $($r.stage)" "Gray"; $lastStage = $r.stage }
+            if ($r.finished) { break }
+        }
+    }
+    if ($proc.HasExited) {
+        Say "`nUnreal closed before the build finished (last stage: '$lastStage', exit code $($proc.ExitCode))." "Red"
+        Show-UnrealLog
+        if ($r) { Copy-Item $report (Join-Path $LogDir "setup_report.json") -Force }
+        Fail "Unreal closed during the build. Send Claude the lines above, or the files in reports\phase1."
+    }
+    if ((Get-Date) -gt $deadline) {
+        Show-UnrealLog
+        Fail "Build not finished after $UnrealTimeoutMinutes minutes (last stage: '$lastStage'). Is a dialog open in Unreal?"
+    }
+    Start-Sleep -Seconds 10
+    $ticks++
+    if ($ticks % 12 -eq 0) { Write-Host "  still working... $([int]((Get-Date) - $started).TotalMinutes) min" -ForegroundColor DarkGray }
 }
-Start-Sleep -Seconds 2
 Copy-Item $report (Join-Path $LogDir "setup_report.json") -Force
-$r = Get-Content $report -Raw | ConvertFrom-Json
+$ueLog = Join-Path $Project "Saved\Logs\HollowHull.log"
+if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
 
 # --- check ----------------------------------------------------------------
 Say "`n=== Result ==="

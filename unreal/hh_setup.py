@@ -8,7 +8,9 @@ Safe to re-run: meshes are re-imported in place, material instances keep their
 values (textures you assigned are not touched), and every actor this script
 spawned (tag HH_Generated) is deleted and spawned again.
 
-Writes <Project>/Saved/HollowHull/setup_report.json for Codex to check.
+Work runs in stages on editor ticks once the editor has settled; the report at
+<Project>/Saved/HollowHull/setup_report.json is rewritten after every stage
+("stage" says how far it got, "finished" turns true at the end).
 """
 
 import json
@@ -202,51 +204,68 @@ def build_material_instances(manifest):
 
 # --- meshes --------------------------------------------------------------
 
-def import_kit(manifest, instances):
-    sme = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
-    tasks = []
-    for piece in manifest["pieces"]:
-        t = unreal.AssetImportTask()
-        t.set_editor_property("filename", os.path.join(KIT_DIR, piece["file"]))
-        t.set_editor_property("destination_path", MESH_DIR)
-        t.set_editor_property("destination_name", piece["name"])
-        t.set_editor_property("automated", True)
-        t.set_editor_property("replace_existing", True)
-        t.set_editor_property("save", True)
-        tasks.append(t)
-    asset_tools.import_asset_tasks(tasks)
+def _fbx_options():
+    """Classic FBX importer settings: mesh only, keep UCX_ hulls, no materials
+    (slots are pointed at our material instances afterwards)."""
+    ui = unreal.FbxImportUI()
+    for prop, value in [("import_mesh", True), ("import_textures", False), ("import_materials", False),
+                        ("import_as_skeletal", False), ("import_animations", False),
+                        ("automated_import_should_detect_type", False)]:
+        set_prop(ui, prop, value)
+    set_prop(ui, "mesh_type_to_import", unreal.FBXImportType.FBXIT_STATIC_MESH)
+    sm = ui.get_editor_property("static_mesh_import_data")
+    for prop, value in [("combine_meshes", True), ("auto_generate_collision", False),
+                        ("one_convex_hull_per_ucx", True), ("generate_lightmap_u_vs", True)]:
+        set_prop(sm, prop, value)
+    return ui
 
+
+def import_kit(manifest, instances):
+    # The newer Interchange importer works asynchronously; touching a mesh it is
+    # still building can crash the editor. The classic importer finishes first.
+    unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX 0")
+    sme = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
     meshes = {}
     for piece in manifest["pieces"]:
         name = piece["name"]
+        t = unreal.AssetImportTask()
+        t.set_editor_property("filename", os.path.join(KIT_DIR, piece["file"]))
+        t.set_editor_property("destination_path", MESH_DIR)
+        t.set_editor_property("destination_name", name)
+        t.set_editor_property("automated", True)
+        t.set_editor_property("replace_existing", True)
+        t.set_editor_property("save", False)
+        t.set_editor_property("options", _fbx_options())
+        asset_tools.import_asset_tasks([t])
+
         mesh = unreal.load_asset(f"{MESH_DIR}/{name}")
         if not isinstance(mesh, unreal.StaticMesh):
             warn(f"{name} did not import as a StaticMesh")
             continue
         meshes[name] = mesh
 
-        # point every slot at our material instance
-        for i, slot in enumerate(mesh.get_editor_property("static_materials")):
+        # point every slot at our material instance: by slot name, else by FBX slot order
+        slots = mesh.get_editor_property("static_materials")
+        for i, slot in enumerate(slots):
             slot_name = str(slot.get_editor_property("material_slot_name")).split(".")[0]
-            mat = slot.get_editor_property("material_interface")
-            key = slot_name if slot_name in instances else (mat.get_name().split(".")[0] if mat else "")
-            if key in instances:
-                mesh.set_material(i, instances[key])
+            if slot_name not in instances and i < len(piece["materials"]):
+                slot_name = piece["materials"][i]
+            if slot_name in instances:
+                mesh.set_material(i, instances[slot_name])
             else:
-                warn(f"{name}: no material instance for slot '{slot_name}'")
+                warn(f"{name}: no material instance for slot {i} '{slot_name}'")
 
         # collision: the FBX carries UCX_ hulls; fall back to per-poly if they were dropped
         hulls = sme.get_convex_collision_count(mesh)
-        if piece["collision_hulls"] == 0:
-            sme.remove_collisions(mesh)
-        elif hulls == 0:
+        if piece["collision_hulls"] and hulls == 0:
             body = mesh.get_editor_property("body_setup")
-            set_prop(body, "collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
+            if body:
+                set_prop(body, "collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
             warn(f"{name}: UCX collision missing after import, using complex-as-simple")
         eal.save_loaded_asset(mesh)
         report["meshes"][name] = {"collision_hulls_expected": piece["collision_hulls"],
-                                  "collision_hulls_imported": hulls,
-                                  "material_slots": len(mesh.get_editor_property("static_materials"))}
+                                  "collision_hulls_imported": hulls, "material_slots": len(slots)}
+        log(f"imported {name}: {len(slots)} slots, {hulls} hulls")
     log(f"imported {len(meshes)}/{len(manifest['pieces'])} meshes")
     return meshes
 
@@ -363,33 +382,104 @@ def set_game_mode():
         log(f"game mode override -> {path}")
 
 
-def main():
-    with open(os.path.join(KIT_DIR, "manifest.json")) as f:
-        manifest = json.load(f)
-    with open(PLACEMENTS) as f:
-        data = json.load(f)
-    instances = build_material_instances(manifest)
-    meshes = import_kit(manifest, instances)
-    les = open_or_create_level()
-    spawn_meshes(data, meshes)
-    spawn_lights(data)
-    spawn_atmosphere(data)
-    set_game_mode()
-    les.save_current_level()
-    report["level"] = MAP_PATH
-    report["ok"] = len(meshes) == len(manifest["pieces"]) and not any("did not import" in w for w in report["warnings"])
-    log(f"done: {sum(report['spawned'].values())} actors, {len(report['warnings'])} warnings")
+# --- staged runner ---------------------------------------------------------
+# The work runs in stages on editor ticks, after the editor has settled, and the
+# report is written after every stage. If the editor dies, the report's "stage"
+# says exactly where.
+
+WARMUP_TICKS = 240
+STAGE_GAP_TICKS = 20
+ctx = {}
 
 
-try:
-    main()
-except Exception:
-    report["ok"] = False
-    report["error"] = traceback.format_exc()
-    unreal.log_error("[HH] FAILED\n" + report["error"])
-finally:
-    out = os.path.join(unreal.Paths.project_saved_dir(), "HollowHull")
+def _report_path():
+    saved = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir())
+    out = os.path.join(saved, "HollowHull")
     os.makedirs(out, exist_ok=True)
-    with open(os.path.join(out, "setup_report.json"), "w") as f:
+    return os.path.join(out, "setup_report.json")
+
+
+def write_report():
+    with open(_report_path(), "w") as f:
         json.dump(report, f, indent=2)
-    unreal.log(f"[HH] report -> {os.path.join(out, 'setup_report.json')}")
+
+
+def stage_load():
+    with open(os.path.join(KIT_DIR, "manifest.json")) as f:
+        ctx["manifest"] = json.load(f)
+    with open(PLACEMENTS) as f:
+        ctx["data"] = json.load(f)
+
+
+def stage_materials():
+    ctx["instances"] = build_material_instances(ctx["manifest"])
+
+
+def stage_import():
+    ctx["meshes"] = import_kit(ctx["manifest"], ctx["instances"])
+
+
+def stage_level():
+    ctx["les"] = open_or_create_level()
+
+
+def stage_meshes():
+    spawn_meshes(ctx["data"], ctx["meshes"])
+
+
+def stage_lights():
+    spawn_lights(ctx["data"])
+
+
+def stage_atmosphere():
+    spawn_atmosphere(ctx["data"])
+
+
+def stage_save():
+    set_game_mode()
+    ctx["les"].save_current_level()
+    report["level"] = MAP_PATH
+
+
+STAGES = [("load", stage_load), ("materials", stage_materials), ("import", stage_import),
+          ("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
+          ("atmosphere", stage_atmosphere), ("save", stage_save)]
+state = {"i": 0, "wait": WARMUP_TICKS, "handle": None}
+
+
+def finish(ok):
+    unreal.unregister_slate_post_tick_callback(state["handle"])
+    report["finished"] = True
+    expected = len(ctx.get("manifest", {}).get("pieces", [])) or -1
+    report["ok"] = ok and len(ctx.get("meshes", {})) == expected
+    write_report()
+    log(f"done: ok={report['ok']}, {sum(report['spawned'].values())} actors, "
+        f"{len(report['warnings'])} warnings")
+    unreal.log(f"[HH] report -> {_report_path()}")
+
+
+def _tick(_dt):
+    if state["wait"] > 0:
+        state["wait"] -= 1
+        return
+    name, fn = STAGES[state["i"]]
+    report["stage"] = name
+    write_report()
+    log(f"stage {state['i'] + 1}/{len(STAGES)}: {name}")
+    try:
+        fn()
+    except Exception:
+        report["error"] = f"stage {name}: " + traceback.format_exc()
+        unreal.log_error("[HH] FAILED " + report["error"])
+        finish(False)
+        return
+    state["i"] += 1
+    state["wait"] = STAGE_GAP_TICKS
+    if state["i"] >= len(STAGES):
+        finish(True)
+
+
+report.update({"ok": False, "finished": False, "stage": "waiting for editor"})
+write_report()
+log(f"queued {len(STAGES)} stages; starting after the editor settles")
+state["handle"] = unreal.register_slate_post_tick_callback(_tick)
