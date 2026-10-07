@@ -178,9 +178,12 @@ if (-not (Test-Path $uproject)) {
     Say $launcherSteps "Yellow"
     Fail "No project at $uproject yet."
 }
-$hasTemplateContent = (Test-Path (Join-Path $Project "Content\Input")) -or (Test-Path (Join-Path $Project "Content\Characters"))
-if (-not $hasTemplateContent -and -not $SkipTemplateCheck) {
-    Say "This project is missing the template's Input and Characters content, so the player cannot move." "Yellow"
+# A launcher-made Third Person project contains Enhanced Input actions (IA_*.uasset)
+# somewhere under Content; the old copied-template project had none.
+$inputActions = @(Get-ChildItem (Join-Path $Project "Content") -Recurse -Filter "IA_*.uasset" -ErrorAction SilentlyContinue)
+Say "Template input actions found: $($inputActions.Count)" "Gray"
+if ($inputActions.Count -eq 0 -and -not $SkipTemplateCheck) {
+    Say "This project has no input action assets (IA_*), so the player cannot move." "Yellow"
     Say "It was probably made by an older version of this script. Recreate it in the launcher:" "Yellow"
     Say $launcherSteps "Yellow"
     Fail "Incomplete project at $Project (use -SkipTemplateCheck to ignore)."
