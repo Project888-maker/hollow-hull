@@ -15,8 +15,9 @@ with its own names, story and art. See [DESIGN.md](DESIGN.md).
 3. Wait. The first Unreal launch compiles shaders (10 to 40 minutes). The
    window tells you when the level is ready, then press **Play** in Unreal.
 
-Everything is logged to `reports\phase1\run_log.txt`. Send that file to Claude
-if anything fails.
+Everything is logged to `reports\phase1\run_log.txt`. If Unreal closes by
+itself at any point, double-click **`COLLECT_LOGS.bat`** and send Claude what it
+shows (graphics card, crash message, the important log lines).
 
 ## How we work
 
