@@ -4,6 +4,20 @@ A small third-person survival-horror concept: one flooded deck of a cursed
 1900s steamship. It's inspired by the genre of *Black Tides: Draga's Wake*,
 with its own names, story and art. See [DESIGN.md](DESIGN.md).
 
+## Quick start (Windows)
+
+1. Get the files into `C:\Users\gasan\OneDrive\Desktop\hollow-hull`: either
+   `git clone https://github.com/Project888-maker/hollow-hull.git .` inside
+   that folder, or on GitHub click **Code > Download ZIP** and extract the
+   contents there.
+2. Double-click **`RUN_PHASE1.bat`**. If Windows shows "Windows protected your
+   PC", click **More info > Run anyway**.
+3. Wait. The first Unreal launch compiles shaders (10 to 40 minutes). The
+   window tells you when the level is ready, then press **Play** in Unreal.
+
+Everything is logged to `reports\phase1\run_log.txt`. Send that file to Claude
+if anything fails.
+
 ## How we work
 
 ```

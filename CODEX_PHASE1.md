@@ -1,5 +1,8 @@
 # Codex task: Hollow Hull, Phase 1 (greybox level in Unreal)
 
+> Shortcut: `run_phase1.ps1` (or double-clicking `RUN_PHASE1.bat`) runs steps 1 to 5
+> and checks the result automatically. The manual steps below do the same thing.
+
 You are running on the user's own computer, where Blender and Unreal Engine 5.7
 are installed. Claude (in the cloud) wrote every script in this folder. Your
 job is to **run them in order, check each result, and report back**. You are
@@ -56,7 +59,7 @@ If Blender or Unreal is installed somewhere else, ask the user for the path.
 ## Step 2: Generate the ship kit in Blender
 
 ```powershell
-& $BLENDER --background --factory-startup --python "$HH\blender\build_ship_kit.py" -- --out "$HH\export\ship_kit"
+& $BLENDER --background --factory-startup --python-exit-code 1 --python "$HH\blender\build_ship_kit.py" -- --out "$HH\export\ship_kit"
 ```
 
 **Expect:** the last line is `[HH] kit done: 21 pieces -> ...`, and
