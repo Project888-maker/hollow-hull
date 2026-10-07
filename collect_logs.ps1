@@ -22,6 +22,12 @@ try {
     Say "could not read GPU info: $_" "Yellow"
 }
 
+Say "`n=== Project ==="
+$ia = @(Get-ChildItem (Join-Path $Project "Content") -Recurse -Filter "IA_*.uasset" -ErrorAction SilentlyContinue)
+Say "Input action assets: $($ia.Count)  $(($ia | Select-Object -First 6 | ForEach-Object { $_.Name }) -join ', ')" "White"
+$gm = @(Get-ChildItem (Join-Path $Project "Content") -Recurse -Filter "*GameMode*.uasset" -ErrorAction SilentlyContinue)
+Say "Game modes: $(($gm | ForEach-Object { $_.FullName.Substring((Join-Path $Project 'Content').Length) }) -join ', ')" "White"
+
 Say "`n=== Unreal crash reports (newest first) ==="
 $crashes = Get-ChildItem (Join-Path $Project "Saved\Crashes") -Directory -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 3
@@ -52,6 +58,14 @@ foreach ($l in $logs) {
     $lines = Get-Content $copy
     $lines | Select-String -Pattern 'Fatal|Assertion failed|Unhandled Exception|GPU crash|D3D|out of memory|\[HH\] (WARNING|FAILED)|RHI|Shader Model' |
         Select-Object -Last 25 | ForEach-Object { Write-Host $_.Line }
+    $bp = $lines | Select-String -Pattern 'LogBlueprint: Error' | ForEach-Object {
+        # drop the timestamp so repeated errors collapse to one line
+        ($_.Line -replace '^\[[^\]]*\]\[[^\]]*\]', '')
+    } | Select-Object -Unique | Select-Object -First 15
+    if ($bp) {
+        Say "  Blueprint errors:" "Red"
+        $bp | ForEach-Object { Write-Host "   $_" }
+    }
     Say "  (last line: $($lines | Select-Object -Last 1))" "DarkGray"
 }
 
