@@ -439,6 +439,13 @@ def stage_save():
     set_game_mode()
     ctx["les"].save_current_level()
     report["level"] = MAP_PATH
+    # start the editor camera in the cabin, looking down the first corridor
+    ps = ctx["data"]["player_start"]
+    try:
+        unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).set_level_viewport_camera_info(
+            unreal.Vector(ps["x"], ps["y"], 170.0), unreal.Rotator(roll=0.0, pitch=-5.0, yaw=float(ps["yaw"])))
+    except Exception as exc:
+        warn(f"could not move the editor camera: {exc}")
 
 
 STAGES = [("load", stage_load), ("materials", stage_materials), ("import", stage_import),
