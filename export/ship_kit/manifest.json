@@ -1,0 +1,546 @@
+{
+  "cell_m": 4.0,
+  "storey_m": 3.0,
+  "materials": {
+    "M_Steel_Paint": {
+      "base_color": [
+        0.16,
+        0.19,
+        0.17
+      ],
+      "roughness": 0.7,
+      "metallic": 0.25,
+      "emissive": 0.0
+    },
+    "M_Steel_Dark": {
+      "base_color": [
+        0.05,
+        0.055,
+        0.06
+      ],
+      "roughness": 0.5,
+      "metallic": 0.9,
+      "emissive": 0.0
+    },
+    "M_Steel_Rust": {
+      "base_color": [
+        0.22,
+        0.08,
+        0.035
+      ],
+      "roughness": 0.8,
+      "metallic": 0.5,
+      "emissive": 0.0
+    },
+    "M_Wood_Wet": {
+      "base_color": [
+        0.09,
+        0.05,
+        0.028
+      ],
+      "roughness": 0.45,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Brass": {
+      "base_color": [
+        0.55,
+        0.38,
+        0.12
+      ],
+      "roughness": 0.35,
+      "metallic": 1.0,
+      "emissive": 0.0
+    },
+    "M_Fabric": {
+      "base_color": [
+        0.3,
+        0.27,
+        0.2
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Glass_Ice": {
+      "base_color": [
+        0.2,
+        0.35,
+        0.45
+      ],
+      "roughness": 0.08,
+      "metallic": 0.0,
+      "emissive": 0.6
+    },
+    "M_Lamp_Glow": {
+      "base_color": [
+        1.0,
+        0.62,
+        0.3
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 12.0
+    },
+    "M_Flesh": {
+      "base_color": [
+        0.12,
+        0.02,
+        0.06
+      ],
+      "roughness": 0.25,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Flesh_Glow": {
+      "base_color": [
+        0.25,
+        0.9,
+        0.6
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 4.0
+    },
+    "M_Water": {
+      "base_color": [
+        0.02,
+        0.05,
+        0.05
+      ],
+      "roughness": 0.04,
+      "metallic": 0.0,
+      "emissive": 0.0
+    }
+  },
+  "pieces": [
+    {
+      "name": "SM_Floor_Steel",
+      "file": "SM_Floor_Steel.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 36,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        -0.1
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.01
+      ]
+    },
+    {
+      "name": "SM_Floor_Wood",
+      "file": "SM_Floor_Wood.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Wood_Wet"
+      ],
+      "collision_hulls": 1,
+      "triangles": 492,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        -0.1
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.0
+      ]
+    },
+    {
+      "name": "SM_Floor_Grate",
+      "file": "SM_Floor_Grate.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 516,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        -0.3
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.0
+      ]
+    },
+    {
+      "name": "SM_Ceiling",
+      "file": "SM_Ceiling.fbx",
+      "materials": [
+        "M_Steel_Paint",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 60,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        -0.27
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.1
+      ]
+    },
+    {
+      "name": "SM_Wall",
+      "file": "SM_Wall.fbx",
+      "materials": [
+        "M_Steel_Paint",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 108,
+      "bounds_min_m": [
+        -2.0,
+        -0.16,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.16,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Wall_Door",
+      "file": "SM_Wall_Door.fbx",
+      "materials": [
+        "M_Steel_Paint",
+        "M_Steel_Dark",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 4,
+      "triangles": 204,
+      "bounds_min_m": [
+        -2.0,
+        -0.16,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.16,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Wall_Porthole",
+      "file": "SM_Wall_Porthole.fbx",
+      "materials": [
+        "M_Steel_Paint",
+        "M_Steel_Rust",
+        "M_Brass",
+        "M_Glass_Ice",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 1,
+      "triangles": 452,
+      "bounds_min_m": [
+        -2.0,
+        -0.165,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.165,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Pillar",
+      "file": "SM_Pillar.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 36,
+      "bounds_min_m": [
+        -0.19,
+        -0.19,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.19,
+        0.19,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Stairs",
+      "file": "SM_Stairs.fbx",
+      "materials": [
+        "M_Steel_Rust",
+        "M_Steel_Dark",
+        "M_Brass"
+      ],
+      "collision_hulls": 1,
+      "triangles": 392,
+      "bounds_min_m": [
+        -2.0,
+        -0.81,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.02,
+        0.81,
+        3.874
+      ]
+    },
+    {
+      "name": "SM_Railing",
+      "file": "SM_Railing.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Brass"
+      ],
+      "collision_hulls": 1,
+      "triangles": 196,
+      "bounds_min_m": [
+        -2.0,
+        -0.03,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.03,
+        1.08
+      ]
+    },
+    {
+      "name": "SM_Pipe_Straight",
+      "file": "SM_Pipe_Straight.fbx",
+      "materials": [
+        "M_Steel_Rust",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 1,
+      "triangles": 180,
+      "bounds_min_m": [
+        -2.0,
+        -0.17,
+        -0.17
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.17,
+        0.17
+      ]
+    },
+    {
+      "name": "SM_Pipe_Vertical",
+      "file": "SM_Pipe_Vertical.fbx",
+      "materials": [
+        "M_Steel_Rust",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 1,
+      "triangles": 192,
+      "bounds_min_m": [
+        -0.2,
+        -0.17,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.2,
+        0.17,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Valve_Wheel",
+      "file": "SM_Valve_Wheel.fbx",
+      "materials": [
+        "M_Brass",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 0,
+      "triangles": 464,
+      "bounds_min_m": [
+        -0.272,
+        -0.2,
+        -0.272
+      ],
+      "bounds_max_m": [
+        0.272,
+        0.2,
+        0.272
+      ]
+    },
+    {
+      "name": "SM_Crate",
+      "file": "SM_Crate.fbx",
+      "materials": [
+        "M_Wood_Wet",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 1,
+      "triangles": 156,
+      "bounds_min_m": [
+        -0.5,
+        -0.5,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.5,
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "name": "SM_Barrel",
+      "file": "SM_Barrel.fbx",
+      "materials": [
+        "M_Steel_Rust",
+        "M_Steel_Dark"
+      ],
+      "collision_hulls": 1,
+      "triangles": 204,
+      "bounds_min_m": [
+        -0.31,
+        -0.315,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.31,
+        0.315,
+        0.9
+      ]
+    },
+    {
+      "name": "SM_Bunk",
+      "file": "SM_Bunk.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Fabric"
+      ],
+      "collision_hulls": 1,
+      "triangles": 120,
+      "bounds_min_m": [
+        -0.95,
+        -0.42,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.95,
+        0.42,
+        1.8
+      ]
+    },
+    {
+      "name": "SM_Lamp_Cage",
+      "file": "SM_Lamp_Cage.fbx",
+      "materials": [
+        "M_Brass",
+        "M_Steel_Dark",
+        "M_Lamp_Glow"
+      ],
+      "collision_hulls": 0,
+      "triangles": 336,
+      "bounds_min_m": [
+        -0.14,
+        -0.14,
+        -0.57
+      ],
+      "bounds_max_m": [
+        0.14,
+        0.14,
+        0.0
+      ]
+    },
+    {
+      "name": "SM_Boiler",
+      "file": "SM_Boiler.fbx",
+      "materials": [
+        "M_Steel_Dark",
+        "M_Steel_Rust",
+        "M_Brass"
+      ],
+      "collision_hulls": 2,
+      "triangles": 736,
+      "bounds_min_m": [
+        -1.75,
+        -1.34,
+        0.0
+      ],
+      "bounds_max_m": [
+        1.9,
+        1.34,
+        6.0
+      ]
+    },
+    {
+      "name": "SM_Door_Bulkhead",
+      "file": "SM_Door_Bulkhead.fbx",
+      "materials": [
+        "M_Steel_Paint",
+        "M_Brass",
+        "M_Steel_Dark",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 1,
+      "triangles": 980,
+      "bounds_min_m": [
+        -0.7,
+        -0.15,
+        0.12
+      ],
+      "bounds_max_m": [
+        0.7,
+        0.15,
+        2.2
+      ]
+    },
+    {
+      "name": "SM_Growth",
+      "file": "SM_Growth.fbx",
+      "materials": [
+        "M_Flesh",
+        "M_Flesh_Glow"
+      ],
+      "collision_hulls": 0,
+      "triangles": 1980,
+      "bounds_min_m": [
+        -0.699,
+        -0.99,
+        -0.12
+      ],
+      "bounds_max_m": [
+        0.975,
+        1.19,
+        0.411
+      ]
+    },
+    {
+      "name": "SM_Water_Tile",
+      "file": "SM_Water_Tile.fbx",
+      "materials": [
+        "M_Water"
+      ],
+      "collision_hulls": 0,
+      "triangles": 128,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        0.0
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.0
+      ]
+    }
+  ]
+}

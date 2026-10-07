@@ -1,0 +1,102 @@
+{
+  "level": "L_FloodedDeck",
+  "cell_cm": 400,
+  "storey_cm": 300,
+  "legend": "columns run +X (east), rows run +Y (south). '.' = empty hull.",
+  "map": [
+    ".SCCCQQQ..",
+    ".....QQQ..",
+    "......K...",
+    "......K...",
+    "...EEEEE..",
+    "...MEEEM..",
+    "...MTEEM..",
+    "...MMMMM..",
+    ".......X..",
+    ".......XXX",
+    ".........X",
+    ".......BBB",
+    ".......BBB",
+    ".......BBB"
+  ],
+  "zones": {
+    "S": {"id": "cabin",      "floor": "SM_Floor_Wood",  "storeys": 1, "portholes": true,  "light": [1.0, 0.70, 0.45], "lamp_cd": 25},
+    "C": {"id": "corridor_a", "floor": "SM_Floor_Steel", "storeys": 1, "portholes": true,  "light": [1.0, 0.75, 0.50], "lamp_cd": 15},
+    "Q": {"id": "quarters",   "floor": "SM_Floor_Wood",  "storeys": 1, "portholes": true,  "light": [1.0, 0.70, 0.45], "lamp_cd": 20},
+    "K": {"id": "corridor_b", "floor": "SM_Floor_Steel", "storeys": 1, "portholes": false, "light": [0.9, 0.80, 0.70], "lamp_cd": 8},
+    "E": {"id": "engine",     "floor": "SM_Floor_Steel", "storeys": 2, "portholes": false, "light": [1.0, 0.55, 0.30], "lamp_cd": 60, "water_cm": 30},
+    "M": {"id": "engine",     "floor": "SM_Floor_Steel", "storeys": 2, "portholes": false, "light": [1.0, 0.55, 0.30], "lamp_cd": 60, "water_cm": 30, "mezzanine": true},
+    "T": {"id": "engine",     "floor": "SM_Floor_Steel", "storeys": 2, "portholes": false, "light": [1.0, 0.55, 0.30], "lamp_cd": 60, "water_cm": 30},
+    "X": {"id": "shifting",   "floor": "SM_Floor_Steel", "storeys": 1, "portholes": false, "light": [0.5, 1.00, 0.70], "lamp_cd": 12},
+    "B": {"id": "hold",       "floor": "SM_Floor_Steel", "storeys": 2, "portholes": true,  "light": [0.6, 0.80, 1.00], "lamp_cd": 30}
+  },
+  "doors": [
+    [[1, 0], [2, 0]],
+    [[4, 0], [5, 0]],
+    [[6, 1], [6, 2]],
+    [[6, 3], [6, 4]],
+    [[7, 7], [7, 8]],
+    [[9, 10], [9, 11]]
+  ],
+  "sealed_doors": [
+    [[3, 0], "N"],
+    [[8, 9], "S"]
+  ],
+  "stairs": [
+    {"cell": [4, 6], "up": "W"}
+  ],
+  "props": [
+    {"mesh": "SM_Bunk",          "cell": [1, 0], "offset": [0, -140, 0]},
+    {"mesh": "SM_Crate",         "cell": [1, 0], "offset": [120, 120, 0], "yaw": 15},
+
+    {"mesh": "SM_Pipe_Straight", "cell": [2, 0], "offset": [0, -150, 260], "collision": false},
+    {"mesh": "SM_Pipe_Straight", "cell": [3, 0], "offset": [0, -150, 260], "collision": false},
+    {"mesh": "SM_Pipe_Straight", "cell": [4, 0], "offset": [0, -150, 260], "collision": false},
+    {"mesh": "SM_Pipe_Vertical", "cell": [2, 0], "offset": [-150, 160, 0]},
+    {"mesh": "SM_Crate",         "cell": [4, 0], "offset": [100, 130, 0], "yaw": -10},
+
+    {"mesh": "SM_Bunk",          "cell": [5, 0], "offset": [0, -140, 0]},
+    {"mesh": "SM_Bunk",          "cell": [6, 0], "offset": [0, -140, 0]},
+    {"mesh": "SM_Bunk",          "cell": [7, 0], "offset": [0, -140, 0]},
+    {"mesh": "SM_Bunk",          "cell": [5, 1], "offset": [0, 140, 0]},
+    {"mesh": "SM_Bunk",          "cell": [7, 1], "offset": [0, 140, 0]},
+    {"mesh": "SM_Barrel",        "cell": [7, 1], "offset": [140, -60, 0]},
+    {"mesh": "SM_Crate",         "cell": [5, 1], "offset": [-120, -40, 0], "yaw": 25},
+    {"mesh": "SM_Growth",        "cell": [7, 0], "offset": [120, 80, 0], "collision": false},
+
+    {"mesh": "SM_Pipe_Straight", "cell": [6, 2], "offset": [-150, 0, 260], "yaw": 90, "collision": false},
+    {"mesh": "SM_Pipe_Straight", "cell": [6, 3], "offset": [-150, 0, 260], "yaw": 90, "collision": false},
+    {"mesh": "SM_Valve_Wheel",   "cell": [6, 3], "offset": [170, 0, 140], "yaw": 90, "collision": false},
+
+    {"mesh": "SM_Boiler",        "cell": [5, 5], "offset": [200, 0, 0]},
+    {"mesh": "SM_Boiler",        "cell": [5, 6], "offset": [200, 0, 0]},
+    {"mesh": "SM_Pipe_Vertical", "cell": [3, 4], "offset": [-150, -150, 0]},
+    {"mesh": "SM_Pipe_Vertical", "cell": [3, 4], "offset": [-150, -150, 300]},
+    {"mesh": "SM_Pipe_Vertical", "cell": [7, 4], "offset": [150, -150, 0]},
+    {"mesh": "SM_Pipe_Vertical", "cell": [7, 4], "offset": [150, -150, 300]},
+    {"mesh": "SM_Barrel",        "cell": [3, 7], "offset": [0, 0, 300]},
+    {"mesh": "SM_Barrel",        "cell": [7, 5], "offset": [80, -60, 300]},
+    {"mesh": "SM_Crate",         "cell": [3, 5], "offset": [0, -100, 300], "yaw": 30},
+    {"mesh": "SM_Growth",        "cell": [4, 5], "offset": [0, 0, 10], "collision": false},
+    {"mesh": "SM_Growth",        "cell": [6, 6], "offset": [100, 120, 10], "yaw": 70, "collision": false},
+
+    {"mesh": "SM_Growth",        "cell": [7, 8], "offset": [-100, 80, 0], "collision": false},
+    {"mesh": "SM_Growth",        "cell": [8, 9], "offset": [0, -120, 0], "yaw": 40, "collision": false},
+    {"mesh": "SM_Growth",        "cell": [9, 9], "offset": [120, 120, 0], "yaw": 160, "collision": false},
+    {"mesh": "SM_Growth",        "cell": [9, 10], "offset": [-120, -60, 0], "yaw": 250, "collision": false},
+    {"mesh": "SM_Pipe_Straight", "cell": [8, 9], "offset": [0, -150, 260], "collision": false},
+
+    {"mesh": "SM_Crate",         "cell": [7, 11], "offset": [-100, -100, 0]},
+    {"mesh": "SM_Crate",         "cell": [7, 11], "offset": [-100, -100, 100], "yaw": 12},
+    {"mesh": "SM_Crate",         "cell": [7, 11], "offset": [10, -100, 0], "yaw": -8},
+    {"mesh": "SM_Crate",         "cell": [9, 13], "offset": [100, 100, 0]},
+    {"mesh": "SM_Crate",         "cell": [9, 13], "offset": [100, 100, 100], "yaw": -20},
+    {"mesh": "SM_Crate",         "cell": [9, 13], "offset": [-10, 100, 0]},
+    {"mesh": "SM_Barrel",        "cell": [7, 13], "offset": [-120, 120, 0]},
+    {"mesh": "SM_Barrel",        "cell": [7, 13], "offset": [-50, 130, 0]},
+    {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [0, 0, 0], "collision": false},
+    {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [60, -40, 0], "yaw": 120, "collision": false},
+    {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [-70, 50, 0], "yaw": 220, "collision": false}
+  ],
+  "player_start": {"cell": [1, 0], "offset": [-40, 60, 100], "yaw": 0}
+}
