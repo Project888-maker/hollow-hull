@@ -13,12 +13,14 @@ Options (all optional):
   -UnrealRoot "C:\Program Files\Epic Games\UE_5.7"
   -Project    "C:\Projects\HollowHull"      must NOT be inside OneDrive
   -SkipUnreal                               only run the Blender + layout steps
+  -SkipTemplateCheck                        don't check that the project came from the launcher
 #>
 param(
     [string]$Blender = "",
     [string]$UnrealRoot = "",
     [string]$Project = "C:\Projects\HollowHull",
     [switch]$SkipUnreal,
+    [switch]$SkipTemplateCheck,
     [int]$UnrealTimeoutMinutes = 90
 )
 
@@ -161,26 +163,41 @@ if ($SkipUnreal) {
     exit 0
 }
 
-# --- 4. Unreal project ----------------------------------------------------
+# --- 4. Unreal project ---------------------------------------------------
 Say "`n=== 4/5  Preparing the Unreal project at $Project ==="
 $uproject = Join-Path $Project "HollowHull.uproject"
-$prep = Join-Path $HH "tools\prepare_project.py"
-if (Test-Path $uproject) {
-    $code = Invoke-Native $Py @($prep, "--existing", $uproject)
-} elseif ((Test-Path $Project) -and @(Get-ChildItem $Project -Force).Count -gt 0) {
-    Fail "$Project exists, is not empty and has no HollowHull.uproject. Empty it or pass -Project with another folder."
-} else {
-    $code = Invoke-Native $Py @($prep, "--engine", $UE, "--dest", $Project)
+$launcherSteps = @"
+Create the project with Epic's launcher (only needed once):
+  1. Close Unreal. If the folder $Project exists, delete it.
+  2. Open Unreal Engine 5.7 > New Project > Games > Third Person.
+  3. Choose Blueprint. Project Location: $(Split-Path $Project)   Project Name: $(Split-Path $Project -Leaf)
+  4. Click Create. When the editor has opened, close it.
+  5. Run RUN_PHASE1.bat again.
+"@
+if (-not (Test-Path $uproject)) {
+    Say $launcherSteps "Yellow"
+    Fail "No project at $uproject yet."
 }
-if ($code -ne 0 -or -not (Test-Path $uproject)) { Fail "prepare_project.py (exit code $code)" }
+$hasTemplateContent = (Test-Path (Join-Path $Project "Content\Input")) -or (Test-Path (Join-Path $Project "Content\Characters"))
+if (-not $hasTemplateContent -and -not $SkipTemplateCheck) {
+    Say "This project is missing the template's Input and Characters content, so the player cannot move." "Yellow"
+    Say "It was probably made by an older version of this script. Recreate it in the launcher:" "Yellow"
+    Say $launcherSteps "Yellow"
+    Fail "Incomplete project at $Project (use -SkipTemplateCheck to ignore)."
+}
+$code = Invoke-Native $Py @((Join-Path $HH "tools\prepare_project.py"), "--existing", $uproject, "--repo", $HH)
+if ($code -ne 0) { Fail "prepare_project.py (exit code $code)" }
 Say "OK" "Green"
 
 # --- 5. Unreal build ------------------------------------------------------
 Say "`n=== 5/5  Opening Unreal and building the level ==="
 $report = Join-Path $Project "Saved\HollowHull\setup_report.json"
 Remove-Item $report -ErrorAction SilentlyContinue
-$setup = Join-Path $HH "unreal\hh_setup.py"
-$proc = Start-Process -FilePath $UEEditor -ArgumentList "`"$uproject`" -ExecutePythonScript=`"$setup`"" -PassThru
+# The project's Content/Python/init_unreal.py sees this file on startup and builds the level.
+$requestDir = Join-Path $Project "Saved\HollowHull"
+New-Item -ItemType Directory -Force $requestDir | Out-Null
+Set-Content -Path (Join-Path $requestDir "build_request") -Value (Get-Date -Format o)
+$proc = Start-Process -FilePath $UEEditor -ArgumentList "`"$uproject`"" -PassThru
 Say "Unreal is starting. The FIRST launch compiles shaders and can take 10-40 minutes." "Yellow"
 Say "Leave this window and the editor open. Waiting for the build to finish..." "Yellow"
 
@@ -229,6 +246,10 @@ foreach ($m in $r.meshes.PSObject.Properties) {
     if ($m.Value.collision_hulls_imported -lt $m.Value.collision_hulls_expected) {
         $problems += "$($m.Name): collision $($m.Value.collision_hulls_imported)/$($m.Value.collision_hulls_expected)"
     }
+}
+$ueLogCopy = Join-Path $LogDir "unreal_log.txt"
+if ((Test-Path $ueLogCopy) -and (Select-String -Path $ueLogCopy -Pattern "EnhancedInputActionEvent references invalid" -Quiet)) {
+    $problems += "the template character's input actions are broken, so the player cannot move: recreate the project in the launcher (see README)"
 }
 foreach ($w in $r.warnings) { Say "warning: $w" "Yellow" }
 if ($problems.Count -gt 0) {

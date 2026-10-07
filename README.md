@@ -10,10 +10,14 @@ with its own names, story and art. See [DESIGN.md](DESIGN.md).
    `git clone https://github.com/Project888-maker/hollow-hull.git .` inside
    that folder, or on GitHub click **Code > Download ZIP** and extract the
    contents there.
-2. Double-click **`RUN_PHASE1.bat`**. If Windows shows "Windows protected your
-   PC", click **More info > Run anyway**.
-3. Wait. The first Unreal launch compiles shaders (10 to 40 minutes). The
-   window tells you when the level is ready, then press **Play** in Unreal.
+2. Create the Unreal project once, with Epic's launcher: **Unreal Engine 5.7 >
+   New Project > Games > Third Person > Blueprint**, Project Location
+   `C:\Projects`, Project Name `HollowHull`, **Create**. Close the editor when it
+   has opened. (The launcher installs the template's input and character
+   content; a copied template folder does not.)
+3. Double-click **`RUN_PHASE1.bat`**. If Windows shows "Windows protected your
+   PC", click **More info > Run anyway**. Unreal opens, builds the level and
+   stays open. The first launch compiles shaders (10 to 40 minutes).
 
 Everything is logged to `reports\phase1\run_log.txt`. If Unreal closes by
 itself at any point, double-click **`COLLECT_LOGS.bat`** and send Claude what it
@@ -58,7 +62,7 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 | `level/layout.py` | Turns the grid map into exact placements (`placements.json`) |
 | `unreal/hh_setup.py` | Imports the kit, creates materials, builds `L_FloodedDeck` |
 | `unreal/hh_screenshots.py` | Captures four review shots inside Unreal |
-| `tools/prepare_project.py` | Creates the Unreal project from the Third Person template |
+| `tools/prepare_project.py` | Prepares the launcher-made project: plugins, startup map, `init_unreal.py` build hook |
 | `export/ship_kit/` | Generated FBX files (committed, so Unreal works even without Blender) |
 | `preview/` | Blender renders of the kit and the level |
 | `reports/` | Codex run reports and Unreal screenshots |

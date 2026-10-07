@@ -1,8 +1,9 @@
 """Hollow Hull: import the ship kit and build L_FloodedDeck inside Unreal 5.7.
 
-Run from the command line (opens the editor, runs this, leaves the editor open):
-    UnrealEditor.exe "<path>/HollowHull.uproject" -ExecutePythonScript="<repo>/unreal/hh_setup.py"
-or inside the editor: Tools > Execute Python Script... and pick this file.
+Normally started by RUN_PHASE1.bat: it leaves a build request in the project's
+Saved/HollowHull folder, and the project's Content/Python/init_unreal.py
+(written by tools/prepare_project.py) runs this file when the editor starts.
+To run it by hand: Tools > Execute Python Script... and pick this file.
 
 Safe to re-run: meshes are re-imported in place, material instances keep their
 values (textures you assigned are not touched), and every actor this script

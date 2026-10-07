@@ -1,7 +1,7 @@
 # Codex task: Hollow Hull, Phase 1 (greybox level in Unreal)
 
 > Shortcut: `run_phase1.ps1` (or double-clicking `RUN_PHASE1.bat`) runs steps 1 to 5
-> and checks the result automatically. The manual steps below do the same thing.
+> and checks the result automatically, once the project exists (step 4). The manual steps below do the same thing.
 
 You are running on the user's own computer, where Blender and Unreal Engine 5.7
 are installed. Claude (in the cloud) wrote every script in this folder. Your
@@ -77,32 +77,39 @@ python "$HH\level\layout.py" "$HH\level\flooded_deck.json" "$HH\level\placements
 
 **Expect:** `[HH] 383 meshes, 24 lights -> ...`
 
-## Step 4: Create the Unreal project
+## Step 4: Prepare the Unreal project
 
 **The Unreal project must not live in a OneDrive-synced folder** (Desktop
-and usually Documents are synced). OneDrive locks Unreal's cache files and
-uploads gigabytes. Use `C:\Projects\HollowHull` unless the user picks another
-non-synced path.
+and usually Documents are synced). Use `C:\Projects\HollowHull`.
+
+The project must be made by Epic's launcher, because Unreal 5.7 templates pull
+in shared content (input actions, mannequin) that a copied template folder lacks.
+If `C:\Projects\HollowHull\HollowHull.uproject` does not exist, ask the user to
+create it: Unreal Engine 5.7 > New Project > Games > Third Person > Blueprint,
+location `C:\Projects`, name `HollowHull`, Create, then close the editor.
 
 ```powershell
-New-Item -ItemType Directory -Force "C:\Projects" | Out-Null
 $PROJ = "C:\Projects\HollowHull"
-python "$HH\tools\prepare_project.py" --engine "$UE" --dest "$PROJ"
+python "$HH\tools\prepare_project.py" --existing "$PROJ\HollowHull.uproject" --repo "$HH"
 ```
-If the user already created a Third Person project, run this instead:
-`python "$HH\tools\prepare_project.py" --existing "<path>\<Name>.uproject"`
 
-**Expect:** `[HH] project ready: ...\HollowHull.uproject`
+**Expect:** `[HH] startup hook -> ...\Content\Python\init_unreal.py` and
+`[HH] project ready: ...\HollowHull.uproject`
 
 ## Step 5: Build the level inside Unreal
 
+Do not use `-ExecutePythonScript`: it makes Unreal quit right after the script
+starts. Leave a build request instead; the project's `init_unreal.py` sees it on
+startup, builds the level, and the editor stays open.
+
 ```powershell
-& $UEEDITOR "$PROJ\HollowHull.uproject" -ExecutePythonScript="$HH\unreal\hh_setup.py"
+New-Item -ItemType Directory -Force "$PROJ\Saved\HollowHull" | Out-Null
+Set-Content "$PROJ\Saved\HollowHull\build_request" (Get-Date -Format o)
+Start-Process $UEEDITOR "`"$PROJ\HollowHull.uproject`""
 ```
 
-The editor opens. **The first launch compiles shaders and can take 10 to 40
-minutes.** Leave it open. When the script finishes, the log
-`$PROJ\Saved\Logs\HollowHull.log` contains `[HH] report -> ...`.
+The first launch compiles shaders and can take 10 to 40 minutes. Wait until
+`$PROJ\Saved\HollowHull\setup_report.json` contains `"finished": true`.
 
 ```powershell
 Select-String -Path "$PROJ\Saved\Logs\HollowHull.log" -Pattern "\[HH\]"
