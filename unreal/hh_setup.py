@@ -452,7 +452,7 @@ def stage_save():
 STAGES = [("load", stage_load), ("materials", stage_materials), ("import", stage_import),
           ("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
           ("atmosphere", stage_atmosphere), ("save", stage_save)]
-state = {"i": 0, "wait": WARMUP_TICKS, "handle": None}
+state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 
 def finish(ok):
@@ -467,6 +467,18 @@ def finish(ok):
 
 
 def _tick(_dt):
+    # Creating and compiling assets pumps the editor's UI, which can call this
+    # callback again while a stage is still running; ignore those nested calls.
+    if state["busy"]:
+        return
+    state["busy"] = True
+    try:
+        _advance()
+    finally:
+        state["busy"] = False
+
+
+def _advance():
     if state["wait"] > 0:
         state["wait"] -= 1
         return

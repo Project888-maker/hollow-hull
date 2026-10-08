@@ -172,21 +172,22 @@ $launcherSteps = @"
 Create the project with Epic's launcher (only needed once):
   1. Close Unreal. If the folder $Project exists, delete it.
   2. Open Unreal Engine 5.7 > New Project > Games > Third Person.
-  3. Choose Blueprint. Project Location: $(Split-Path $Project)   Project Name: $(Split-Path $Project -Leaf)
+  3. Choose Blueprint. Project Location: C:\Projects   Project Name: HollowHull  (exactly this name)
   4. Click Create. When the editor has opened, close it.
   5. Run RUN_PHASE1.bat again.
 "@
 if (-not $found.Uproject) {
+    if ($found.Others.Count -gt 0) {
+        Say "Found other Unreal projects, which are left alone: $(($found.Others | Select-Object -First 4 | ForEach-Object { $_.FullName }) -join ', ')" "DarkGray"
+    }
+    Say "No project named HollowHull was found." "Yellow"
     Say $launcherSteps "Yellow"
-    Fail "No Unreal project found in $Project or the usual project folders."
+    Fail "No HollowHull project found in C:\Projects or Documents\Unreal Projects."
 }
 $uproject = $found.Uproject
 $Project = $found.Dir
 $ProjectName = $found.Name
 Say "Using project: $uproject" "White"
-if ($found.Candidates.Count -gt 1) {
-    Say "(newest of $($found.Candidates.Count) projects found; others: $(($found.Candidates | Select-Object -Skip 1 -First 3 | ForEach-Object { $_.FullName }) -join ', '))" "DarkGray"
-}
 if ($Project -match "OneDrive") {
     # OneDrive breaks Unreal projects (locked and half-synced files), so move it out automatically.
     $target = Join-Path "C:\Projects" $ProjectName

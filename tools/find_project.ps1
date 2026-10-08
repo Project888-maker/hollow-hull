@@ -1,8 +1,10 @@
 <#
 Shared by run_phase1.ps1 and collect_logs.ps1 (dot-sourced).
-Finds the Unreal project to build into: a .uproject directly inside the
-preferred folder, otherwise the newest .uproject in the usual project folders.
+Finds the HollowHull Unreal project. Only a project file named HollowHull.uproject
+is ever used, so other projects (tutorials, samples) are never touched.
 #>
+
+$HHProjectFile = "HollowHull.uproject"
 
 function Get-ProjectSearchRoots([string]$Preferred) {
     # Every entry is optional: skip any base folder Windows doesn't report.
@@ -12,7 +14,8 @@ function Get-ProjectSearchRoots([string]$Preferred) {
         @([Environment]::GetFolderPath("MyDocuments"), "Unreal Projects"),
         @($env:USERPROFILE, "Documents\Unreal Projects"),
         @($env:USERPROFILE, "OneDrive\Documents\Unreal Projects"),
-        @($env:OneDrive, "Documents\Unreal Projects")
+        @($env:OneDrive, "Documents\Unreal Projects"),
+        @([Environment]::GetFolderPath("Desktop"), "")
     )
     $roots = foreach ($p in $pairs) {
         if (-not $p[0]) { continue }
@@ -22,19 +25,27 @@ function Get-ProjectSearchRoots([string]$Preferred) {
 }
 
 function Find-UnrealProject([string]$Preferred) {
-    # Returns @{ Uproject; Dir; Name; Candidates } - Uproject is $null when nothing was found.
-    $result = @{ Uproject = $null; Dir = $null; Name = $null; Candidates = @() }
-    $direct = Get-ChildItem $Preferred -Filter "*.uproject" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($direct) {
-        $pick = $direct
+    # Returns @{ Uproject; Dir; Name; Others } - Uproject is $null when no HollowHull project was found.
+    # Others lists other .uproject files seen, only so the message can mention them.
+    $result = @{ Uproject = $null; Dir = $null; Name = $null; Others = @() }
+    $direct = Join-Path $Preferred $HHProjectFile
+    if (Test-Path $direct) {
+        $pick = Get-Item $direct
     } else {
-        $found = foreach ($root in (Get-ProjectSearchRoots $Preferred)) {
+        $roots = Get-ProjectSearchRoots $Preferred
+        # a few levels deep, in case the folder was pasted inside another HollowHull folder
+        $hits = foreach ($root in $roots) {
+            Get-ChildItem $root -Recurse -Depth 3 -Filter $HHProjectFile -ErrorAction SilentlyContinue
+        }
+        # prefer a copy outside OneDrive, then the newest
+        $pick = @($hits) | Sort-Object @{ Expression = { $_.FullName -match "OneDrive" } }, @{ Expression = { $_.LastWriteTime }; Descending = $true } |
+            Select-Object -First 1
+        $others = foreach ($root in $roots) {
             Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
                 Get-ChildItem $_.FullName -Filter "*.uproject" -ErrorAction SilentlyContinue
             }
         }
-        $result.Candidates = @($found | Sort-Object LastWriteTime -Descending)
-        $pick = $result.Candidates | Select-Object -First 1
+        $result.Others = @($others | Where-Object { $_.Name -ne $HHProjectFile })
     }
     if ($pick) {
         $result.Uproject = $pick.FullName
