@@ -6,6 +6,9 @@ or the files it copies into reports\phase1\logs.
 param([string]$Project = "C:\Projects\HollowHull")
 
 $HH = $PSScriptRoot
+. (Join-Path $HH "tools\find_project.ps1")
+$found = Find-UnrealProject $Project
+if ($found.Dir) { $Project = $found.Dir }
 $Out = Join-Path $HH "reports\phase1\logs"
 New-Item -ItemType Directory -Force $Out | Out-Null
 
@@ -23,6 +26,7 @@ try {
 }
 
 Say "`n=== Project ==="
+Say "Project: $(if ($found.Uproject) { $found.Uproject } else { 'none found' })" "White"
 $ia = @(Get-ChildItem (Join-Path $Project "Content") -Recurse -Filter "IA_*.uasset" -ErrorAction SilentlyContinue)
 Say "Input action assets: $($ia.Count)  $(($ia | Select-Object -First 6 | ForEach-Object { $_.Name }) -join ', ')" "White"
 $gm = @(Get-ChildItem (Join-Path $Project "Content") -Recurse -Filter "*GameMode*.uasset" -ErrorAction SilentlyContinue)

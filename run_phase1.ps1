@@ -26,6 +26,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $HH = $PSScriptRoot
+. (Join-Path $HH "tools\find_project.ps1")
+$ProjectName = "HollowHull"
 $LogDir = Join-Path $HH "reports\phase1"
 New-Item -ItemType Directory -Force $LogDir | Out-Null
 Start-Transcript -Path (Join-Path $LogDir "run_log.txt") -Force | Out-Null
@@ -103,7 +105,7 @@ function Find-Unreal {
 
 function Show-UnrealLog {
     # Copy Unreal's log (and newest crash report) into reports\phase1 and print the lines that matter.
-    $log = Join-Path $Project "Saved\Logs\HollowHull.log"
+    $log = Join-Path $Project "Saved\Logs\$ProjectName.log"
     if (Test-Path $log) {
         Copy-Item $log (Join-Path $LogDir "unreal_log.txt") -Force
         $lines = Get-Content (Join-Path $LogDir "unreal_log.txt")
@@ -165,7 +167,7 @@ if ($SkipUnreal) {
 
 # --- 4. Unreal project ---------------------------------------------------
 Say "`n=== 4/5  Preparing the Unreal project at $Project ==="
-$uproject = Join-Path $Project "HollowHull.uproject"
+$found = Find-UnrealProject $Project
 $launcherSteps = @"
 Create the project with Epic's launcher (only needed once):
   1. Close Unreal. If the folder $Project exists, delete it.
@@ -174,9 +176,24 @@ Create the project with Epic's launcher (only needed once):
   4. Click Create. When the editor has opened, close it.
   5. Run RUN_PHASE1.bat again.
 "@
-if (-not (Test-Path $uproject)) {
+if (-not $found.Uproject) {
     Say $launcherSteps "Yellow"
-    Fail "No project at $uproject yet."
+    Fail "No Unreal project found in $Project or the usual project folders."
+}
+$uproject = $found.Uproject
+$Project = $found.Dir
+$ProjectName = $found.Name
+Say "Using project: $uproject" "White"
+if ($found.Candidates.Count -gt 1) {
+    Say "(newest of $($found.Candidates.Count) projects found; others: $(($found.Candidates | Select-Object -Skip 1 -First 3 | ForEach-Object { $_.FullName }) -join ', '))" "DarkGray"
+}
+if ($Project -match "OneDrive") {
+    Say "That project is inside OneDrive, which breaks Unreal projects. Move it out:" "Yellow"
+    Say "  1. Close Unreal." "Yellow"
+    Say "  2. In File Explorer, cut the folder $Project" "Yellow"
+    Say "  3. Paste it into C:\Projects (create that folder if needed)." "Yellow"
+    Say "  4. Run RUN_PHASE1.bat again." "Yellow"
+    Fail "Project is inside OneDrive."
 }
 # A launcher-made Third Person project contains Enhanced Input actions (IA_*.uasset)
 # somewhere under Content; the old copied-template project had none.
@@ -232,7 +249,7 @@ while ($true) {
     if ($ticks % 12 -eq 0) { Write-Host "  still working... $([int]((Get-Date) - $started).TotalMinutes) min" -ForegroundColor DarkGray }
 }
 Copy-Item $report (Join-Path $LogDir "setup_report.json") -Force
-$ueLog = Join-Path $Project "Saved\Logs\HollowHull.log"
+$ueLog = Join-Path $Project "Saved\Logs\$ProjectName.log"
 if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
 
 # --- check ----------------------------------------------------------------
