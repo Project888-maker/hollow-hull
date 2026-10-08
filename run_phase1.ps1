@@ -287,6 +287,13 @@ if ((Test-Path $ueLogCopy) -and (Select-String -Path $ueLogCopy -Pattern "Enhanc
 }
 foreach ($w in $r.warnings) { Say "warning: $w" "Yellow" }
 if ($problems.Count -gt 0) {
+    Say "Build stopped at stage: $($r.stage)" "Red"
+    if ($r.error) { Say "Error:`n$($r.error)" "Red" }
+    if (Test-Path $ueLogCopy) {
+        Say "--- [HH] lines from the Unreal log ---" "Yellow"
+        Select-String -Path $ueLogCopy -Pattern '\[HH\]|LogPython: Error|Traceback' |
+            Select-Object -Last 30 | ForEach-Object { Write-Host $_.Line }
+    }
     foreach ($p in $problems) { Say "problem: $p" "Red" }
     Say "`nThe level may still be playable. Send Claude reports\phase1\run_log.txt and setup_report.json." "Yellow"
 } else {
