@@ -205,7 +205,7 @@ def build_material_instances(manifest):
 
 # --- meshes --------------------------------------------------------------
 
-def _fbx_options():
+def _fbx_options(scale=1.0):
     """Classic FBX importer settings: mesh only, keep UCX_ hulls, no materials
     (slots are pointed at our material instances afterwards)."""
     ui = unreal.FbxImportUI()
@@ -216,9 +216,38 @@ def _fbx_options():
     set_prop(ui, "mesh_type_to_import", unreal.FBXImportType.FBXIT_STATIC_MESH)
     sm = ui.get_editor_property("static_mesh_import_data")
     for prop, value in [("combine_meshes", True), ("auto_generate_collision", False),
-                        ("one_convex_hull_per_ucx", True), ("generate_lightmap_u_vs", True)]:
+                        ("one_convex_hull_per_ucx", True), ("generate_lightmap_u_vs", True),
+                        ("import_uniform_scale", float(scale))]:
         set_prop(sm, prop, value)
     return ui
+
+
+def _import_piece(piece, scale=1.0):
+    t = unreal.AssetImportTask()
+    t.set_editor_property("filename", os.path.join(KIT_DIR, piece["file"]))
+    t.set_editor_property("destination_path", MESH_DIR)
+    t.set_editor_property("destination_name", piece["name"])
+    t.set_editor_property("automated", True)
+    t.set_editor_property("replace_existing", True)
+    t.set_editor_property("save", False)
+    t.set_editor_property("options", _fbx_options(scale))
+    asset_tools.import_asset_tasks([t])
+    return unreal.load_asset(f"{MESH_DIR}/{piece['name']}")
+
+
+def _expected_size_cm(piece):
+    """Largest dimension of the piece as exported from Blender, in centimetres."""
+    return max(hi - lo for lo, hi in zip(piece["bounds_min_m"], piece["bounds_max_m"])) * 100.0
+
+
+def _mesh_size_cm(mesh):
+    box = mesh.get_bounding_box()
+    lo, hi = box.min, box.max
+    return max(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
+
+
+def _off(ratio):
+    return abs(ratio - 1.0) > 0.05
 
 
 def import_kit(manifest, instances):
@@ -229,21 +258,29 @@ def import_kit(manifest, instances):
     meshes = {}
     for piece in manifest["pieces"]:
         name = piece["name"]
-        t = unreal.AssetImportTask()
-        t.set_editor_property("filename", os.path.join(KIT_DIR, piece["file"]))
-        t.set_editor_property("destination_path", MESH_DIR)
-        t.set_editor_property("destination_name", name)
-        t.set_editor_property("automated", True)
-        t.set_editor_property("replace_existing", True)
-        t.set_editor_property("save", False)
-        t.set_editor_property("options", _fbx_options())
-        asset_tools.import_asset_tasks([t])
-
-        mesh = unreal.load_asset(f"{MESH_DIR}/{name}")
+        mesh = _import_piece(piece)
         if not isinstance(mesh, unreal.StaticMesh):
             warn(f"{name} did not import as a StaticMesh")
             continue
+
+        # Size check: importers disagree about Blender's FBX units, which can
+        # bring a mesh in 100x too small or too large. Re-import at the scale
+        # that matches the size Blender exported.
+        expected = _expected_size_cm(piece)
+        actual = _mesh_size_cm(mesh)
+        import_scale, spawn_scale = 1.0, 1.0
+        if actual <= 0.001:
+            warn(f"{name}: imported mesh is empty")
+        elif _off(expected / actual):
+            import_scale = expected / actual
+            log(f"{name}: imported {actual:.2f} cm, expected {expected:.0f} cm; re-importing at scale {import_scale:.4g}")
+            mesh = _import_piece(piece, import_scale)
+            actual = _mesh_size_cm(mesh)
+            if actual > 0.001 and _off(expected / actual):
+                spawn_scale = expected / actual  # importer ignored the scale: fix it on the placed actors
+                warn(f"{name}: still {actual:.2f} cm after re-import; scaling placed actors by {spawn_scale:.4g}")
         meshes[name] = mesh
+        ctx.setdefault("spawn_scale", {})[name] = spawn_scale
 
         # point every slot at our material instance: by slot name, else by FBX slot order
         slots = mesh.get_editor_property("static_materials")
@@ -265,8 +302,10 @@ def import_kit(manifest, instances):
             warn(f"{name}: UCX collision missing after import, using complex-as-simple")
         eal.save_loaded_asset(mesh)
         report["meshes"][name] = {"collision_hulls_expected": piece["collision_hulls"],
-                                  "collision_hulls_imported": hulls, "material_slots": len(slots)}
-        log(f"imported {name}: {len(slots)} slots, {hulls} hulls")
+                                  "collision_hulls_imported": hulls, "material_slots": len(slots),
+                                  "size_cm_expected": round(expected, 1), "size_cm_imported": round(actual, 1),
+                                  "import_scale": round(import_scale, 4), "spawn_scale": round(spawn_scale, 4)}
+        log(f"imported {name}: {actual:.0f} cm, {len(slots)} slots, {hulls} hulls")
     log(f"imported {len(meshes)}/{len(manifest['pieces'])} meshes")
     return meshes
 
@@ -306,6 +345,9 @@ def spawn_meshes(data, meshes):
         loc = unreal.Vector(m["x"], m["y"], m["z"])
         rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(m["yaw"]))
         actor = eas.spawn_actor_from_object(mesh, loc, rot)
+        scale = ctx.get("spawn_scale", {}).get(m["mesh"], 1.0)
+        if scale != 1.0:
+            actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
         _tag(actor, m["tag"] or "misc")
         if not m["collision"]:
             actor.static_mesh_component.set_collision_profile_name("NoCollision")

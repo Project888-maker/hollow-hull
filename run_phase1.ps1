@@ -278,6 +278,9 @@ foreach ($k in $Expected.Keys) {
     if ($got -ne $Expected[$k]) { $problems += "$k spawned $got, expected $($Expected[$k])" }
 }
 foreach ($m in $r.meshes.PSObject.Properties) {
+    if ($m.Value.PSObject.Properties["size_cm_imported"] -and [double]$m.Value.size_cm_imported -le 0.01) {
+        $problems += "$($m.Name): imported mesh is empty"
+    }
     if ($m.Value.collision_hulls_imported -lt $m.Value.collision_hulls_expected) {
         $problems += "$($m.Name): collision $($m.Value.collision_hulls_imported)/$($m.Value.collision_hulls_expected)"
     }
