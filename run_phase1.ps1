@@ -188,12 +188,26 @@ if ($found.Candidates.Count -gt 1) {
     Say "(newest of $($found.Candidates.Count) projects found; others: $(($found.Candidates | Select-Object -Skip 1 -First 3 | ForEach-Object { $_.FullName }) -join ', '))" "DarkGray"
 }
 if ($Project -match "OneDrive") {
-    Say "That project is inside OneDrive, which breaks Unreal projects. Move it out:" "Yellow"
-    Say "  1. Close Unreal." "Yellow"
-    Say "  2. In File Explorer, cut the folder $Project" "Yellow"
-    Say "  3. Paste it into C:\Projects (create that folder if needed)." "Yellow"
-    Say "  4. Run RUN_PHASE1.bat again." "Yellow"
-    Fail "Project is inside OneDrive."
+    # OneDrive breaks Unreal projects (locked and half-synced files), so move it out automatically.
+    $target = Join-Path "C:\Projects" $ProjectName
+    Say "The project is inside OneDrive. Moving it to $target ..." "Yellow"
+    if (Get-Process -Name "UnrealEditor*" -ErrorAction SilentlyContinue) {
+        Fail "Unreal is open. Close Unreal completely, then double-click RUN_PHASE1 again."
+    }
+    if (Test-Path $target) {
+        Fail "$target already exists. Delete or rename that folder, then run RUN_PHASE1 again."
+    }
+    New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
+    try {
+        Move-Item -Path $Project -Destination $target -ErrorAction Stop
+    } catch {
+        Say "Automatic move failed: $_" "Red"
+        Say "Move it by hand: close Unreal, cut the folder $Project and paste it into C:\Projects." "Yellow"
+        Fail "Could not move the project out of OneDrive."
+    }
+    $Project = $target
+    $uproject = Join-Path $target "$ProjectName.uproject"
+    Say "Moved. Using project: $uproject" "Green"
 }
 # A launcher-made Third Person project contains Enhanced Input actions (IA_*.uasset)
 # somewhere under Content; the old copied-template project had none.
