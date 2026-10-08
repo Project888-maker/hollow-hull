@@ -49,3 +49,33 @@ Interact E/A
 Cold blue light from the portholes against warm sodium lamps. Wet, rusted
 steel. Volumetric fog. Flesh growths with bioluminescent pustules. Inspired by
 Edwardian ship interiors, *Still Wakes the Deep*, *Dead Space* and Lovecraft.
+
+## Phase 2: combat and enemies (plan)
+
+**Base:** Epic's Third Person **Combat** variant (UE 5.6+): hand-to-hand combos,
+dash, enemy AI, in-world health bars, hit reactions and death animations. It's
+tested by Epic, and we script our level, enemy placement and characters on top.
+
+**Hero:** Paragon: Revenant (free on Fab), a gothic gunslinger in a long coat
+with a revolver, retargeted onto the template skeleton.
+
+**Monsters** (all free Paragon packs on Fab, one art style, full animation sets):
+
+| Monster | Role | Where |
+|---|---|---|
+| **Khaimera**, a clawed demon beast | fast hunter, lunges from the dark | crew quarters, shifting corridor |
+| **Grux**, a hulking two-mace brute | heavy bruiser, slow telegraphed slams | flooded engine room (with 1 to 2 hunters) |
+| **Sevarog**, a giant hooded reaper with a hammer | boss, the source of the growth | cargo hold |
+
+**Kills, kept physical rather than flashy:**
+- Every hit lands with a short hit-stop (about 60 ms) and a camera kick. The enemy
+  plays a directional hit reaction (front, back, left, right) from where it was struck.
+- Heavy hits and harpoon shots stagger: the enemy is knocked back and briefly
+  open, and a follow-up hit does extra damage.
+- Death switches the enemy to ragdoll physics with an impulse from the killing
+  blow, so it falls the way it was hit. Bodies stay and can block the
+  corridor.
+- The harpoon (6 shots in the slice) hits hard enough to throw a hunter back
+  and pin a dying body's limb toward the wall. It's the "spend a bullet or risk
+  melee" choice.
+- Blood and black ichor decals at impact points and under bodies.

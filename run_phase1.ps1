@@ -264,6 +264,8 @@ while ($true) {
     if ($ticks % 12 -eq 0) { Write-Host "  still working... $([int]((Get-Date) - $started).TotalMinutes) min" -ForegroundColor DarkGray }
 }
 Copy-Item $report (Join-Path $LogDir "setup_report.json") -Force
+$inventory = Join-Path $Project "Saved\HollowHull\inventory.json"
+if (Test-Path $inventory) { Copy-Item $inventory (Join-Path $LogDir "inventory.json") -Force }
 $ueLog = Join-Path $Project "Saved\Logs\$ProjectName.log"
 if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
 

@@ -491,9 +491,47 @@ def stage_save():
         warn(f"could not move the editor camera: {exc}")
 
 
+INVENTORY_CLASSES = {"Blueprint", "World", "SkeletalMesh", "AnimBlueprint", "StateTree", "BehaviorTree",
+                     "InputAction", "InputMappingContext", "AnimMontage", "PhysicsAsset", "IKRigDefinition",
+                     "IKRetargeter", "WidgetBlueprint", "NiagaraSystem", "SoundCue"}
+
+
+def stage_inventory():
+    """List what the project contains (template variants, Fab characters) for Claude to script against.
+    Informational only: a failure here is a warning, never a failed build."""
+    try:
+        _write_inventory()
+    except Exception as exc:
+        warn(f"inventory not written: {exc}")
+
+
+def _write_inventory():
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    items = []
+    for a in registry.get_assets_by_path("/Game", recursive=True):
+        cls = str(a.asset_class_path.asset_name)
+        pkg = str(a.package_name)
+        if cls not in INVENTORY_CLASSES or pkg.startswith(PKG):
+            continue
+        entry = {"path": pkg, "class": cls}
+        if cls in ("Blueprint", "AnimBlueprint", "WidgetBlueprint"):
+            parent = a.get_tag_value("ParentClass")
+            if parent:
+                entry["parent"] = str(parent).split(".")[-1].rstrip("'")
+        items.append(entry)
+    items.sort(key=lambda e: (e["class"], e["path"]))
+    with open(os.path.join(os.path.dirname(_report_path()), "inventory.json"), "w") as f:
+        json.dump({"assets": items}, f, indent=1)
+    counts = {}
+    for e in items:
+        counts[e["class"]] = counts.get(e["class"], 0) + 1
+    report["inventory"] = counts
+    log(f"inventory: {counts}")
+
+
 STAGES = [("load", stage_load), ("materials", stage_materials), ("import", stage_import),
           ("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
-          ("atmosphere", stage_atmosphere), ("save", stage_save)]
+          ("atmosphere", stage_atmosphere), ("save", stage_save), ("inventory", stage_inventory)]
 state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 
