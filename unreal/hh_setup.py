@@ -70,6 +70,38 @@ def set_prop(obj, name, value):
         return False
 
 
+# --- asset helpers ---------------------------------------------------------
+# Unreal's asset registry fills in the background after startup; with big
+# content packs it can still be incomplete when the build runs. So existence is
+# also checked on disk, and a failed create says why instead of returning None.
+
+def _asset_file(path):
+    """/Game/A/B -> <Project>/Content/A/B (without extension)."""
+    content = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir())
+    return os.path.join(content, *path[len("/Game/"):].split("/"))
+
+
+def asset_exists(path):
+    if eal.does_asset_exist(path):
+        return True
+    base = _asset_file(path)
+    return os.path.exists(base + ".uasset") or os.path.exists(base + ".umap")
+
+
+def load_or_create(name, folder, cls, factory):
+    """Returns (asset, created)."""
+    path = f"{folder}/{name}"
+    if asset_exists(path):
+        asset = unreal.load_asset(path)
+        if asset:
+            return asset, False
+        raise RuntimeError(f"{path} exists on disk but could not be loaded")
+    asset = asset_tools.create_asset(name, folder, cls, factory)
+    if asset is None:
+        raise RuntimeError(f"Unreal refused to create {path}")
+    return asset, True
+
+
 # --- materials -----------------------------------------------------------
 
 def _expr(mat, cls, x, y, param=None):
@@ -94,10 +126,9 @@ def build_master_material():
     Defaults are white/flat textures, so it renders as plain colour until real
     textures (Megascans, fal) are assigned on the material instances.
     """
-    path = f"{MAT_DIR}/M_HH_Master"
-    if eal.does_asset_exist(path):
-        return unreal.load_asset(path)
-    mat = asset_tools.create_asset("M_HH_Master", MAT_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    mat, created = load_or_create("M_HH_Master", MAT_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    if not created:
+        return mat
 
     coords = _expr(mat, unreal.MaterialExpressionTextureCoordinate, -1400, 0)
     tiling = _expr(mat, unreal.MaterialExpressionScalarParameter, -1400, 150, "Tiling")
@@ -148,10 +179,9 @@ def build_master_material():
 
 
 def build_water_material():
-    path = f"{MAT_DIR}/M_HH_Water"
-    if eal.does_asset_exist(path):
-        return unreal.load_asset(path)
-    mat = asset_tools.create_asset("M_HH_Water", MAT_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    mat, created = load_or_create("M_HH_Water", MAT_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    if not created:
+        return mat
     set_prop(mat, "blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
     set_prop(mat, "translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
     for name, value, prop, x, y in [
@@ -179,12 +209,11 @@ def build_material_instances(manifest):
     instances = {}
     for src_name, spec in manifest["materials"].items():
         mi_name = "MI_" + src_name[2:]
-        path = f"{MAT_DIR}/{mi_name}"
-        if eal.does_asset_exist(path):
-            instances[src_name] = unreal.load_asset(path)
+        mi, created = load_or_create(mi_name, MAT_DIR, unreal.MaterialInstanceConstant,
+                                     unreal.MaterialInstanceConstantFactoryNew())
+        if not created:
+            instances[src_name] = mi
             continue
-        mi = asset_tools.create_asset(mi_name, MAT_DIR, unreal.MaterialInstanceConstant,
-                                      unreal.MaterialInstanceConstantFactoryNew())
         parent = water if src_name == "M_Water" else master
         mel.set_material_instance_parent(mi, parent)
         r, g, b = spec["base_color"]
@@ -314,7 +343,7 @@ def import_kit(manifest, instances):
 
 def open_or_create_level():
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-    if eal.does_asset_exist(MAP_PATH):
+    if asset_exists(MAP_PATH):
         les.load_level(MAP_PATH)
         eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         old = [a for a in eas.get_all_level_actors() if TAG in [str(t) for t in a.tags]]
@@ -431,6 +460,7 @@ def set_game_mode():
 # says exactly where.
 
 WARMUP_TICKS = 240
+MAX_SCAN_WAIT_TICKS = 4000
 STAGE_GAP_TICKS = 20
 ctx = {}
 
@@ -562,6 +592,18 @@ def _tick(_dt):
 def _advance():
     if state["wait"] > 0:
         state["wait"] -= 1
+        return
+    # wait for the startup asset scan, but not forever: existence checks also
+    # look on disk, so after ~2 minutes it is safe to go ahead anyway
+    scan_ticks = state.get("scan_ticks", 0)
+    if (state["i"] == 0 and scan_ticks < MAX_SCAN_WAIT_TICKS
+            and unreal.AssetRegistryHelpers.get_asset_registry().is_loading_assets()):
+        state["scan_ticks"] = scan_ticks + 1
+        if not state.get("registry_logged"):
+            log("waiting for Unreal to finish scanning project assets")
+            report["stage"] = "waiting for asset scan"
+            write_report()
+            state["registry_logged"] = True
         return
     name, fn = STAGES[state["i"]]
     report["stage"] = name
