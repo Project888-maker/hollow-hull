@@ -493,7 +493,8 @@ def stage_save():
 
 INVENTORY_CLASSES = {"Blueprint", "World", "SkeletalMesh", "AnimBlueprint", "StateTree", "BehaviorTree",
                      "InputAction", "InputMappingContext", "AnimMontage", "PhysicsAsset", "IKRigDefinition",
-                     "IKRetargeter", "WidgetBlueprint", "NiagaraSystem", "SoundCue"}
+                     "IKRetargeter", "WidgetBlueprint", "NiagaraSystem", "SoundCue",
+                     "Material", "MaterialInstanceConstant", "Texture2D"}
 
 
 def stage_inventory():
