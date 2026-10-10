@@ -558,7 +558,16 @@ def _write_inventory():
     for e in items:
         counts[e["class"]] = counts.get(e["class"], 0) + 1
     report["inventory"] = counts
-    log(f"inventory: {counts}")
+    # top-level Content folders straight from disk (Fab packs land here), in MB
+    content = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir())
+    folders = {}
+    for entry in sorted(os.listdir(content)):
+        full = os.path.join(content, entry)
+        if os.path.isdir(full):
+            size = sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(full) for f in fs)
+            folders[entry] = round(size / 1e6, 1)
+    report["content_folders_mb"] = folders
+    log(f"inventory: {counts}; content folders: {folders}")
 
 
 STAGES = [("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials), ("import", stage_import),
