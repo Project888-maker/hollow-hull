@@ -292,22 +292,18 @@ def import_kit(manifest, instances):
             warn(f"{name} did not import as a StaticMesh")
             continue
 
-        # Size check: importers disagree about Blender's FBX units, which can
-        # bring a mesh in 100x too small or too large. Re-import at the scale
-        # that matches the size Blender exported.
+        # Size check: importers disagree about Blender's FBX units and can bring
+        # a mesh in 100x too small. Re-importing in place leaves stale mesh
+        # objects behind, so the mesh is imported once and the placed actors are
+        # scaled to the size Blender exported instead.
         expected = _expected_size_cm(piece)
         actual = _mesh_size_cm(mesh)
         import_scale, spawn_scale = 1.0, 1.0
         if actual <= 0.001:
             warn(f"{name}: imported mesh is empty")
         elif _off(expected / actual):
-            import_scale = expected / actual
-            log(f"{name}: imported {actual:.2f} cm, expected {expected:.0f} cm; re-importing at scale {import_scale:.4g}")
-            mesh = _import_piece(piece, import_scale)
-            actual = _mesh_size_cm(mesh)
-            if actual > 0.001 and _off(expected / actual):
-                spawn_scale = expected / actual  # importer ignored the scale: fix it on the placed actors
-                warn(f"{name}: still {actual:.2f} cm after re-import; scaling placed actors by {spawn_scale:.4g}")
+            spawn_scale = expected / actual
+            log(f"{name}: imported at {actual:.2f} cm, expected {expected:.0f} cm; placed actors scaled by {spawn_scale:.4g}")
         meshes[name] = mesh
         ctx.setdefault("spawn_scale", {})[name] = spawn_scale
 
@@ -374,6 +370,11 @@ def spawn_meshes(data, meshes):
         loc = unreal.Vector(m["x"], m["y"], m["z"])
         rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(m["yaw"]))
         actor = eas.spawn_actor_from_object(mesh, loc, rot)
+        if actor is None:
+            if m["mesh"] not in ctx.setdefault("spawn_failed", set()):
+                warn(f"could not place {m['mesh']} (Unreal returned no actor)")
+                ctx["spawn_failed"].add(m["mesh"])
+            continue
         scale = ctx.get("spawn_scale", {}).get(m["mesh"], 1.0)
         if scale != 1.0:
             actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
@@ -560,9 +561,9 @@ def _write_inventory():
     log(f"inventory: {counts}")
 
 
-STAGES = [("load", stage_load), ("materials", stage_materials), ("import", stage_import),
+STAGES = [("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials), ("import", stage_import),
           ("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
-          ("atmosphere", stage_atmosphere), ("save", stage_save), ("inventory", stage_inventory)]
+          ("atmosphere", stage_atmosphere), ("save", stage_save)]
 state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 
@@ -589,10 +590,27 @@ def _tick(_dt):
         state["busy"] = False
 
 
+def _in_play_mode():
+    try:
+        return unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor()
+    except Exception:
+        return False
+
+
 def _advance():
     if state["wait"] > 0:
         state["wait"] -= 1
         return
+    # Unreal refuses editor building while a game is running in the editor
+    # (Play pressed too early): pause until Play is stopped.
+    if _in_play_mode():
+        if not state.get("pie_logged"):
+            warn("Play was pressed during the build; paused until Play is stopped")
+            report["stage"] = "paused: stop Play in Unreal"
+            write_report()
+            state["pie_logged"] = True
+        return
+    state["pie_logged"] = False
     # wait for the startup asset scan, but not forever: existence checks also
     # look on disk, so after ~2 minutes it is safe to go ahead anyway
     scan_ticks = state.get("scan_ticks", 0)

@@ -235,6 +235,7 @@ Set-Content -Path (Join-Path $requestDir "build_request") -Value (Get-Date -Form
 $proc = Start-Process -FilePath $UEEditor -ArgumentList "`"$uproject`"" -PassThru
 Say "Unreal is starting. The FIRST launch compiles shaders and can take 10-40 minutes." "Yellow"
 Say "Leave this window and the editor open. Waiting for the build to finish..." "Yellow"
+Say "Do NOT press Play in Unreal until this window says 'Everything checks out'." "Yellow"
 
 $deadline = (Get-Date).AddMinutes($UnrealTimeoutMinutes)
 $started = Get-Date
