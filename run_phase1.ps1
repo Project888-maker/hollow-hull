@@ -129,6 +129,8 @@ function Show-UnrealLog {
     }
 }
 
+Say "Hollow Hull scripts version: 2026-10-11a (copies Paragon packs, lists content folders)" "Magenta"
+
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
 $BlenderExe = Find-Blender
