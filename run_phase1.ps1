@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11a (copies Paragon packs, lists content folders)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11b (moves Paragon packs, lists content folders)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -223,21 +223,63 @@ if ($inputActions.Count -eq 0 -and -not $SkipTemplateCheck) {
     Fail "Incomplete project at $Project (use -SkipTemplateCheck to ignore)."
 }
 # Fab packs (Paragon characters) that the launcher put into another project are
-# self-contained Content folders, so copy any that HollowHull is missing.
+# self-contained Content folders. Move (not copy) any that HollowHull is missing:
+# on the same drive a move is an instant rename and needs no free space.
 $myContent = Join-Path $Project "Content"
+function Get-FreeGB([string]$Path) {
+    try { return [math]::Round(([IO.DriveInfo]::new([IO.Path]::GetPathRoot($Path))).AvailableFreeSpace / 1GB, 1) }
+    catch { return -1 }
+}
+function Test-HasAllFiles([string]$Dest, [string]$Src) {
+    # True when every file under $Src is also under $Dest with the same size.
+    $root = (Get-Item -LiteralPath $Src -Force).FullName.TrimEnd('\', '/')
+    foreach ($f in Get-ChildItem -LiteralPath $Src -Recurse -File -Force -ErrorAction SilentlyContinue) {
+        $d = Join-Path $Dest $f.FullName.Substring($root.Length)
+        if (-not (Test-Path -LiteralPath $d)) { return $false }
+        if ((Get-Item -LiteralPath $d -Force).Length -ne $f.Length) { return $false }
+    }
+    return $true
+}
+Say "Free space on $([IO.Path]::GetPathRoot($Project)) $(Get-FreeGB $Project) GB" "Gray"
 foreach ($dir in (Find-OtherProjectDirs $Project $Project)) {
     $packs = Get-ChildItem (Join-Path $dir "Content") -Directory -Filter "Paragon*" -ErrorAction SilentlyContinue
     foreach ($pack in $packs) {
         $dest = Join-Path $myContent $pack.Name
-        if (Test-Path $dest) { continue }
-        Say "Copying $($pack.Name) from $dir (one time, can take a few minutes)..." "Yellow"
-        $code = Invoke-Native "robocopy" @($pack.FullName, $dest, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
-        if ($code -ge 8) { Fail "Copying $($pack.Name) failed (robocopy exit code $code)" }
+        if (-not (Test-Path $dest)) {
+            Say "Moving $($pack.Name) from $dir into HollowHull..." "Yellow"
+            try {
+                Move-Item -LiteralPath $pack.FullName -Destination $dest -ErrorAction Stop
+                continue
+            } catch {
+                Say "  quick move not possible ($($_.Exception.Message)); moving file by file instead" "Gray"
+            }
+        } elseif (Test-HasAllFiles $dest $pack.FullName) {
+            # HollowHull already has a complete copy, so the other one is a duplicate.
+            Say "$($pack.Name) is already complete in HollowHull; removing the duplicate from $dir to free space" "Yellow"
+            Remove-Item -LiteralPath $pack.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        } else {
+            Say "$($pack.Name) in HollowHull is incomplete (an earlier copy stopped); finishing it from $dir..." "Yellow"
+        }
+        # Resumes an unfinished copy: files already there are skipped, the rest are moved.
+        $code = Invoke-Native "robocopy" @($pack.FullName, $dest, "/E", "/MOVE", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+        if ($code -ge 8) {
+            Say "Free space now: $(Get-FreeGB $Project) GB" "Yellow"
+            Fail "Moving $($pack.Name) failed (robocopy exit code $code). If it says 'not enough space', free some disk space and run RUN_PHASE1 again - it carries on where it stopped."
+        }
+        if ((Test-Path $pack.FullName) -and (Test-HasAllFiles $dest $pack.FullName)) {
+            Remove-Item -LiteralPath $pack.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 $myPacks = @(Get-ChildItem $myContent -Directory -Filter "Paragon*" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
 if ($myPacks.Count -gt 0) { Say "Fab characters in the project: $($myPacks -join ', ')" "Green" }
 else { Say "No Paragon characters found in HollowHull or your other projects yet." "Yellow" }
+$free = Get-FreeGB $Project
+if ($free -ge 0 -and $free -lt 15) {
+    Say "Only $free GB free on the project drive. Unreal needs roughly 10-15 GB for the characters' shaders and cache." "Yellow"
+    Say "If Unreal fails or closes, free some space (Recycle Bin, Downloads, Disk Cleanup) and run again." "Yellow"
+}
 
 $code = Invoke-Native $Py @((Join-Path $HH "tools\prepare_project.py"), "--existing", $uproject, "--repo", $HH)
 if ($code -ne 0) { Fail "prepare_project.py (exit code $code)" }
