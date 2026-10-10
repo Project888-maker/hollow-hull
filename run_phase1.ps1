@@ -220,6 +220,23 @@ if ($inputActions.Count -eq 0 -and -not $SkipTemplateCheck) {
     Say $launcherSteps "Yellow"
     Fail "Incomplete project at $Project (use -SkipTemplateCheck to ignore)."
 }
+# Fab packs (Paragon characters) that the launcher put into another project are
+# self-contained Content folders, so copy any that HollowHull is missing.
+$myContent = Join-Path $Project "Content"
+foreach ($dir in (Find-OtherProjectDirs $Project $Project)) {
+    $packs = Get-ChildItem (Join-Path $dir "Content") -Directory -Filter "Paragon*" -ErrorAction SilentlyContinue
+    foreach ($pack in $packs) {
+        $dest = Join-Path $myContent $pack.Name
+        if (Test-Path $dest) { continue }
+        Say "Copying $($pack.Name) from $dir (one time, can take a few minutes)..." "Yellow"
+        $code = Invoke-Native "robocopy" @($pack.FullName, $dest, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+        if ($code -ge 8) { Fail "Copying $($pack.Name) failed (robocopy exit code $code)" }
+    }
+}
+$myPacks = @(Get-ChildItem $myContent -Directory -Filter "Paragon*" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+if ($myPacks.Count -gt 0) { Say "Fab characters in the project: $($myPacks -join ', ')" "Green" }
+else { Say "No Paragon characters found in HollowHull or your other projects yet." "Yellow" }
+
 $code = Invoke-Native $Py @((Join-Path $HH "tools\prepare_project.py"), "--existing", $uproject, "--repo", $HH)
 if ($code -ne 0) { Fail "prepare_project.py (exit code $code)" }
 Say "OK" "Green"

@@ -54,3 +54,13 @@ function Find-UnrealProject([string]$Preferred) {
     }
     return $result
 }
+
+function Find-OtherProjectDirs([string]$Preferred, [string]$ExcludeDir) {
+    # Folders of every other .uproject in the usual places (where the launcher may have put Fab packs).
+    $dirs = foreach ($root in (Get-ProjectSearchRoots $Preferred)) {
+        Get-ChildItem $root -Recurse -Depth 2 -Filter "*.uproject" -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.DirectoryName }
+    }
+    $exclude = [IO.Path]::GetFullPath($ExcludeDir).TrimEnd('\', '/')
+    return @($dirs | Where-Object { [IO.Path]::GetFullPath($_).TrimEnd('\', '/') -ne $exclude } | Select-Object -Unique)
+}
