@@ -30,6 +30,10 @@ MANNY = "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
 PLAYER_BP = COMBAT + "/Blueprints/BP_CombatCharacter"
 ENEMY_BP = COMBAT + "/Blueprints/AI/BP_CombatEnemy"
 GAME_MODE_BP = COMBAT + "/Blueprints/BP_CombatGameMode"
+CONTROLLER_BP = COMBAT + "/Blueprints/BP_CombatPlayerController"
+# the Combat player controller respawns a fixed character class after death
+RESPAWN_PROPS = ["Character Class", "CharacterClass", "Pawn Class", "PawnClass", "Respawn Class",
+                 "Player Character Class", "Character To Spawn"]
 # Combat variant assets the characters play; retargeted per hero
 ANIM_BP = COMBAT + "/Anims/ABP_Manny_Combat"
 MONTAGES = [COMBAT + "/Anims/AM_ComboAttack", COMBAT + "/Anims/AM_ChargedAttack"]
@@ -42,7 +46,7 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # skeleton: they carry the AI, combo and damage logic), but the mannequin animations
 # inside them are swapped for the hero's own Paragon ones (see NATIVE_ANIMS).
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165},
+    "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165},
     "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
     "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205,
@@ -370,7 +374,10 @@ def use_native_animations(name, info):
     for base, candidates in plan.items():
         copy = f"/Game/{base}_{name}"
         if not H.asset_exists(copy):
-            continue  # already swapped by an earlier run
+            continue
+        current = unreal.load_asset(copy)
+        if current is None or current.get_path_name().startswith(f"/Game/Paragon{name}/"):
+            continue  # already swapped by an earlier run (the copy is now a redirector)
         target = next((native[c] for c in candidates if c in native), None)
         if not target:
             missing.append(base)
@@ -389,6 +396,46 @@ def use_native_animations(name, info):
     return len(swapped)
 
 
+def ragdoll_physics(name, mesh, info):
+    """A per-bone physics asset for the hero. The Combat characters go limp when hit and
+    when they die; the Paragon meshes only carry coarse shape helpers (e.g. Grux_Extents),
+    so the whole body flipped over as one block and poked through walls."""
+    try:
+        before = mesh.get_editor_property("physics_asset")
+        info["physics_before"] = before.get_name() if before else None
+    except Exception:
+        info["physics_before"] = "?"
+    path = f"{CHAR_DIR}/PA_HH_{name}"
+    if H.asset_exists(path):
+        return unreal.load_asset(path)
+    makers = []
+    try:
+        makers.append(unreal.get_editor_subsystem(unreal.SkeletalMeshEditorSubsystem))
+    except Exception:
+        pass
+    if hasattr(unreal, "EditorSkeletalMeshLibrary"):
+        makers.append(unreal.EditorSkeletalMeshLibrary)
+    for lib in makers:
+        info.setdefault("physics_api", sorted(m for m in dir(lib) if "physic" in m.lower()))
+        fn = getattr(lib, "create_physics_asset", None)
+        if fn is None:
+            continue
+        try:
+            pa = fn(mesh)
+        except TypeError:
+            pa = fn(mesh, False)  # (mesh, set_to_mesh) in some versions
+        if pa:
+            # keep it with our characters, under a fixed name
+            if pa.get_path_name().split(".")[0] != path:
+                H.eal.rename_asset(pa.get_path_name().split(".")[0], path)
+                pa = unreal.load_asset(path)
+            H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
+            info["physics"] = "made per-bone ragdoll"
+            return pa
+    info["physics"] = "could not make a ragdoll; physics left as it was"
+    return None
+
+
 def configure_blueprint(name, bp, mesh, anims, info):
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     cdo = unreal.get_default_object(bp.generated_class())
@@ -397,6 +444,13 @@ def configure_blueprint(name, bp, mesh, anims, info):
         _call_first(comp, ["set_skeletal_mesh_asset", "set_skeletal_mesh"], mesh)
         comp.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT)
         comp.set_editor_property("anim_class", anims[ANIM_BP.split("/")[-1]].generated_class())
+        pa = None
+        try:
+            pa = ragdoll_physics(name, mesh, info)
+        except Exception as exc:
+            info["physics"] = f"{type(exc).__name__}: {exc}"
+        if pa:
+            comp.set_editor_property("physics_asset_override", pa)
         scale, radius, half, z = _fit_body(name, mesh, info)
         comp.set_editor_property("relative_location", unreal.Vector(0, 0, z))
         comp.set_editor_property("relative_rotation", unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0))
@@ -508,6 +562,30 @@ def build_character(name):
     _write_probe()
 
 
+def build_player_controller(info):
+    """Child of the Combat player controller whose respawn class is our hero (without it
+    the player came back as the grey mannequin after dying). Returns its class or None."""
+    try:
+        bp = _child_blueprint("BP_HH_CombatPlayerController", CONTROLLER_BP)
+        unreal.BlueprintEditorLibrary.compile_blueprint(bp)
+        cdo = unreal.get_default_object(bp.generated_class())
+        found = {}
+        for p in RESPAWN_PROPS:
+            try:
+                found[p] = str(cdo.get_editor_property(p))
+                cdo.set_editor_property(p, built[PLAYER_HERO])
+                info["respawn_class_property"] = p
+                break
+            except Exception:
+                pass
+        info["controller_props"] = found
+        H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
+        return bp.generated_class()
+    except Exception as exc:
+        info["controller_error"] = f"{type(exc).__name__}: {exc}"
+        return None
+
+
 def build_game_mode():
     info = _info("GameMode")
     try:
@@ -517,6 +595,10 @@ def build_game_mode():
             cdo = unreal.get_default_object(bp.generated_class())
             cdo.set_editor_property("default_pawn_class", built[PLAYER_HERO])
             info["default_pawn"] = PLAYER_HERO
+            pc = build_player_controller(info) if H.asset_exists(CONTROLLER_BP) else None
+            if pc:
+                cdo.set_editor_property("player_controller_class", pc)
+                info["player_controller"] = "BP_HH_CombatPlayerController"
         H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
         return f"{CHAR_DIR}/BP_HH_CombatGameMode"
     except Exception:
