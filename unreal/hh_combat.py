@@ -52,11 +52,13 @@ HEROES = {
                  "attacks": ["Primary_Fire_Fast", "Primary_Fire_Med", "Primary_Fire_Slow", "RMB"],
                  # shots reach further than fists; camera far enough back to see him walk
                  "props": {"Melee Trace Distance": 250.0, "Default Camera Distance": 220.0}},
-    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380,
+    # min_radius: wider bodies so monsters stop at arm's length instead of standing inside
+    # you (doors are 140 cm wide, so no wider than 132)
+    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380, "min_radius": 46,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
-    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300,
+    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300, "min_radius": 60,
              "attacks": ["PrimaryAttack_LA", "PrimaryAttack_RA", "PrimaryAttack_LB", "PrimaryAttack_RB"]},
-    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True, "speed": 260,
+    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True, "speed": 260, "min_radius": 66,
                 "attacks": ["Swing1_Medium", "Swing2_Medium", "Swing3_Medium", "Swing3_Slow"]},
 }
 # retargeted mannequin animation (name without the hero suffix) -> the hero's own, first that exists
@@ -747,18 +749,50 @@ JOINT_LIMIT_DEFAULT = (35, 35, 20)
 BODY_DAMPING = {"linear_damping": 0.5, "angular_damping": 4.0}
 
 
-def _subobjects(pa, cls_name, prop):
+SUBOBJECT_SCAN = 20000  # highest object number tried when looking bodies up by name
+
+
+def _subobjects(pa, cls_name, prop, diag=None):
     """The physics asset's bodies or joints. Its list properties are not readable from
-    Python in 5.7, so fall back to the loaded objects that live inside the asset."""
+    Python in 5.7, so they are found as objects living inside the asset: first among all
+    loaded objects, then by name (bodies are called SkeletalBodySetup_<n>)."""
+    diag = diag if diag is not None else {}
     try:
         return list(pa.get_editor_property(prop))
-    except Exception:
-        pass
+    except Exception as exc:
+        diag[f"{prop}_list"] = str(exc)[:120]
+    path = pa.get_path_name()
     cls = getattr(unreal, cls_name, None)
-    if cls is None:
-        return []
-    prefix = pa.get_path_name() + ":"
-    return [o for o in unreal.ObjectIterator(cls) if o.get_path_name().startswith(prefix)]
+    found = {}
+    if cls is not None and hasattr(unreal, "ObjectIterator"):
+        try:
+            seen, samples = 0, []
+            for o in unreal.ObjectIterator(cls):
+                seen += 1
+                p = o.get_path_name()
+                outer = None
+                try:
+                    outer = o.get_outer().get_path_name()
+                except Exception:
+                    pass
+                if outer == path or p.startswith(path + ":") or p.startswith(path + "."):
+                    found[p] = o
+                elif len(samples) < 3:
+                    samples.append(p)
+            diag[f"{cls_name}_loaded"] = seen
+            diag[f"{cls_name}_samples"] = samples
+        except Exception as exc:
+            diag[f"{cls_name}_iterator"] = f"{type(exc).__name__}: {exc}"
+    if not found and hasattr(unreal, "find_object"):
+        for i in range(SUBOBJECT_SCAN):
+            try:
+                o = unreal.find_object(pa, f"{cls_name}_{i}")
+            except Exception:
+                o = None
+            if o is not None:
+                found[o.get_path_name()] = o
+        diag[f"{cls_name}_by_name"] = len(found)
+    return list(found.values())
 
 
 def _joint_limits(bone):
@@ -845,8 +879,9 @@ def tame_ragdoll(name, pa, info):
     jelly. Now only the main skeleton swings, with real masses, joint limits and damping."""
     out = info.setdefault("ragdoll", {"simulated": [], "riding": [], "kinematic": [], "errors": []})
     errors = out["errors"]
-    bodies = _subobjects(pa, "SkeletalBodySetup", "skeletal_body_setups")
-    joints = _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup")
+    diag = out.setdefault("lookup", {})
+    bodies = _subobjects(pa, "SkeletalBodySetup", "skeletal_body_setups", diag)
+    joints = _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup", diag)
     out["found"] = {"bodies": len(bodies), "joints": len(joints)}
     path_of = _bone_paths(name)
     role = {}
@@ -999,6 +1034,11 @@ def configure_blueprint(name, bp, mesh, anims, info, stats=True):
             cmc = cdo.get_editor_property("character_movement")
             info["walk_speed"] = {"was": round(cmc.get_editor_property("max_walk_speed")), "now": speed}
             cmc.set_editor_property("max_walk_speed", float(speed))
+            if HEROES[name]["parent"] == ENEMY_BP:
+                # monsters steer around each other instead of walking into one another
+                cmc.set_editor_property("use_rvo_avoidance", True)
+                cmc.set_editor_property("avoidance_consideration_radius", 400.0)
+                info["avoidance"] = True
         except Exception as exc:
             info["walk_speed"] = f"{type(exc).__name__}: {exc}"
     hp_scale = HEROES[name]["hp"]
