@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11k (ragdoll physics, respawn as Revenant, tougher hero)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11l (slower monsters, real Combat settings listed)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="

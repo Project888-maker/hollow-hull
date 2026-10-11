@@ -47,11 +47,11 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # inside them are swapped for the hero's own Paragon ones (see NATIVE_ANIMS).
 HEROES = {
     "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165},
-    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165,
+    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
-    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205,
+    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300,
              "attacks": ["PrimaryAttack_LA", "PrimaryAttack_RA", "PrimaryAttack_LB", "PrimaryAttack_RB"]},
-    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True,
+    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True, "speed": 260,
                 "attacks": ["Swing1_Medium", "Swing2_Medium", "Swing3_Medium", "Swing3_Slow"]},
 }
 # retargeted mannequin animation (name without the hero suffix) -> the hero's own, first that exists
@@ -129,9 +129,39 @@ def _call_first(obj, names, *args):
 
 # --- probe: what the Combat Blueprints contain ---------------------------------
 
+PROBE_TARGETS = {  # Combat Blueprint -> the engine class it builds on
+    PLAYER_BP: "Character", ENEMY_BP: "Character", GAME_MODE_BP: "GameModeBase",
+    CONTROLLER_BP: "PlayerController", COMBAT + "/Blueprints/AI/BP_CombatAIController": "AIController",
+    COMBAT + "/Blueprints/AI/BP_Combat_EnemySpawner": "Actor",
+    COMBAT + "/Blueprints/Interactables/BP_Combat_ActivationVolume": "Actor",
+}
+
+
+def blueprint_variables(path, engine_class):
+    """{name: value} of what the Blueprint adds on top of its engine class: Python's view
+    of a Blueprint default object lists the Blueprint's own variables."""
+    cdo = unreal.get_default_object(H.eal.load_blueprint_class(path))
+    base = set(dir(unreal.get_default_object(getattr(unreal, engine_class).static_class())))
+    out = {}
+    for n in sorted(set(dir(cdo)) - base):
+        if n.startswith("_"):
+            continue
+        try:
+            out[n] = str(cdo.get_editor_property(n))[:120]
+        except Exception:
+            out[n] = "(function or not readable)"
+    return out
+
+
 def probe_combat_blueprints():
-    """Record which candidate variables exist on the Combat Blueprints, plus their
-    Find-in-Blueprints text (lists every variable and function name)."""
+    """Record the Combat Blueprints' own variables (so settings are found by their real
+    names, not guessed) and which of the guessed names exist."""
+    for path, engine_class in PROBE_TARGETS.items():
+        if H.asset_exists(path):
+            try:
+                probe.setdefault(path.split("/")[-1], {})["variables"] = blueprint_variables(path, engine_class)
+            except Exception as exc:
+                probe.setdefault(path.split("/")[-1], {})["variables_error"] = f"{type(exc).__name__}: {exc}"
     for path in (PLAYER_BP, ENEMY_BP, GAME_MODE_BP):
         entry = probe.setdefault(path.split("/")[-1], {})
         try:
@@ -472,6 +502,14 @@ def configure_blueprint(name, bp, mesh, anims, info):
                 except Exception:
                     pass
         info["montage_props_set"] = set_props
+    speed = HEROES[name].get("speed")
+    if speed:  # Epic's enemies are tuned for an open arena; the ship's corridors are 4 m wide
+        try:
+            cmc = cdo.get_editor_property("character_movement")
+            info["walk_speed"] = {"was": round(cmc.get_editor_property("max_walk_speed")), "now": speed}
+            cmc.set_editor_property("max_walk_speed", float(speed))
+        except Exception as exc:
+            info["walk_speed"] = f"{type(exc).__name__}: {exc}"
     hp_scale = HEROES[name]["hp"]
     if hp_scale != 1.0:
         # scale the parent's value (not this Blueprint's, which a previous run already scaled)
@@ -570,7 +608,14 @@ def build_player_controller(info):
         unreal.BlueprintEditorLibrary.compile_blueprint(bp)
         cdo = unreal.get_default_object(bp.generated_class())
         found = {}
-        for p in RESPAWN_PROPS:
+        try:  # its own variables that hold a class, e.g. the character to respawn
+            own = blueprint_variables(CONTROLLER_BP, "PlayerController")
+            # only a variable that currently points at the Combat mannequin character
+            candidates = [n for n, v in own.items() if "BP_CombatCharacter" in v]
+        except Exception:
+            candidates = []
+        info["controller_candidates"] = candidates
+        for p in candidates + RESPAWN_PROPS:
             try:
                 found[p] = str(cdo.get_editor_property(p))
                 cdo.set_editor_property(p, built[PLAYER_HERO])
