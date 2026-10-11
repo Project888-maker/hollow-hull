@@ -17,6 +17,8 @@ start(out)      play time (init_unreal.py starts it on every editor launch, like
                   - a hit sound whenever someone loses health
                   - the level's music (level/<level>.json "music"), with a drum and
                     string layer faded in while a monster is close
+                It also eases Epic's half-limp hit reaction back out, which otherwise
+                lasts until the character lands (see _recover_from_hit).
                 A summary goes to reports/phase1/audio_trace.json. Every Unreal call is
                 guarded: sound can never stop the game, it only goes quiet.
 """
@@ -52,6 +54,7 @@ STEP_VOLUME = {"player": 0.55, "monster": 0.8}
 VOICE_VOLUME = 0.9
 PAIN_GAP = 0.7            # seconds between pain cries from one character
 FALLOFF_INNER_CM, FALLOFF_CM = 400.0, 3200.0
+HIT_HOLD, HIT_EASE = 0.35, 0.4  # a hit's limpness shows this long, then eases out over this long
 
 # Paragon voice cues per hero; {h} is the hero name
 CUE_DIRS = {"Revenant": "/Game/ParagonRevenant/Audio/Cues"}
@@ -284,7 +287,7 @@ def _new_char(actor, player):
         pass
     return {"hero": hero, "player": player, "stride": 0.9 * head, "pitch": math.sqrt(165.0 / head),
             "half_h": half_h, "walked": 0.0, "last": None, "hp": None, "dead": False, "pain_t": -9.0,
-            "montage": None, "section": None, "air": False}
+            "montage": None, "section": None, "air": False, "hit_t": None}
 
 
 def _attack_sounds(c, actor, montage, section, loc):
@@ -308,6 +311,26 @@ def _attack_sounds(c, actor, montage, section, loc):
     _play("voice swing", _voice(hero, "Effort_Swing" if random.random() < 0.6 else "Effort_Attack"), loc, VOICE_VOLUME)
 
 
+def _recover_from_hit(c, actor, t):
+    """Epic's hit reaction makes the body half limp (physics blend 0.5) and only its landing
+    event makes it solid again. A blow that does not lift the character off the floor never
+    lands, so arms dangled and stretched until a later hit (50 s in the 2026-10-11t run).
+    Ease the limpness back out over HIT_EASE seconds whether or not it landed."""
+    if c["hit_t"] is None or c["dead"]:
+        return
+    k = (t - c["hit_t"] - HIT_HOLD) / HIT_EASE
+    if k < 0:
+        return
+    weight = max(0.0, 0.5 * (1.0 - k))
+    try:
+        actor.get_editor_property("mesh").set_physics_blend_weight(weight)
+        S["session"]["hit_recoveries"] = S["session"].get("hit_recoveries", 0) + (weight == 0.0)
+    except Exception as exc:
+        _err("hit recovery", exc)
+    if weight == 0.0:
+        c["hit_t"] = None
+
+
 def _look(actor, t, player_pawn):
     key = actor.get_path_name()
     c = S["chars"].get(key)
@@ -329,7 +352,10 @@ def _look(actor, t, player_pawn):
                 c["pain_t"] = t
                 heavy = c["hp"] - hp > 0.25 * max(c["hp"], 1e-3)
                 _play("voice pain", _voice(hero, "Effort_PainHeavy" if heavy else "Effort_Pain"), loc, VOICE_VOLUME)
+            if hp > 0:
+                c["hit_t"] = t
         c["hp"] = hp
+    _recover_from_hit(c, actor, t)
     if c["dead"]:
         return c, loc
 
@@ -370,6 +396,22 @@ def _look(actor, t, player_pawn):
     return c, loc
 
 
+def _sound_2d(world, snd, volume):
+    """An unplayed 2D sound for music. Unreal's Python names CreateSound2D differently from
+    what the 2026-10-11t run tried (create_sound_2d did not exist), so look it up."""
+    gs = unreal.GameplayStatics
+    for name in ("create_sound2d", "create_sound_2d"):
+        fn = getattr(gs, name, None)
+        if fn is not None:
+            return fn(world, snd, volume)
+    for name in ("spawn_sound2d", "spawn_sound_2d"):  # these start playing; fade_in restarts it
+        fn = getattr(gs, name, None)
+        if fn is not None:
+            return fn(world, snd, volume)
+    S["errors"].setdefault("2d sound names", [n for n in dir(gs) if "sound" in n.lower()])
+    raise RuntimeError("no 2D sound function on GameplayStatics")
+
+
 def _music(world, t, threat):
     """Level music once per session; the fight layer while a monster is close."""
     if S["music"] is None:
@@ -380,7 +422,7 @@ def _music(world, t, threat):
         S["music"] = False
         if snd is not None:
             try:
-                comp = unreal.GameplayStatics.create_sound_2d(world, snd, MUSIC_VOLUME)
+                comp = _sound_2d(world, snd, MUSIC_VOLUME)
                 comp.fade_in(MUSIC_FADE_IN, 1.0, random.uniform(0, 30))
                 S["music"] = comp
             except Exception as exc:
@@ -392,7 +434,7 @@ def _music(world, t, threat):
         snd = _sound(f"{AUDIO}/combat_layer")
         if snd is not None:
             try:
-                comp = unreal.GameplayStatics.create_sound_2d(world, snd, COMBAT_VOLUME)
+                comp = _sound_2d(world, snd, COMBAT_VOLUME)
                 comp.fade_in(COMBAT_FADE_IN, 1.0, 0.0)
                 S["combat"] = comp
                 S["session"]["fights"] += 1

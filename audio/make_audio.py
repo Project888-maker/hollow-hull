@@ -224,13 +224,12 @@ def music_ship():
         creak = resonance(clicks, sr, rng.uniform(500, 1400), 6) * 0.5
         place(out, pan(creak, rng.uniform(-1, 1)), int(rng.uniform(0, secs) * sr))
 
-    # drips: short rising blips somewhere in the dark
-    for k in range(26):
-        length = int(0.12 * sr)
-        tt = np.arange(length) / sr
-        f = rng.uniform(1100, 2400) * (1 + 1.5 * tt / tt[-1])
-        drip = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-tt * 45)
-        place(out, pan(drip * rng.uniform(0.08, 0.18), rng.uniform(-1, 1)), int(rng.uniform(0, secs) * sr))
+    # drips: a drop striking a puddle somewhere in the dark (a noise tick ringing briefly)
+    for k in range(14):
+        length = int(0.15 * sr)
+        tick = rng.standard_normal(length) * np.exp(-np.arange(length) / sr * 300)
+        drip = resonance(tick, sr, rng.uniform(900, 1600), 9)
+        place(out, pan(drip * rng.uniform(0.03, 0.07), rng.uniform(-1, 1)), int(rng.uniform(0, secs) * sr))
 
     out = circular_convolve(out, reverb_ir(sr, 3.5, rng, stereo=True, damping=2500)) * 0.7 + out * 0.5
     out = highpass(out, sr, 28, 2)
@@ -322,18 +321,25 @@ def step(floor, i):
                           sr, rng.uniform(1500, 3500), 12)
             x[at:at + r.shape[0]] += r[: n - at] * 0.6
         x = _room(x, rng, 0.7, 0.3)
-    else:  # water: a splash and a few bubbles
-        splash = bandpass(rng.standard_normal(n), sr, 700, 7000) * env(n, 0.01, 0.12, sr, 3)
-        bubbles = np.zeros(n)
-        for k in range(6):
-            at = int(rng.uniform(0.02, 0.18) * sr)
-            m = int(0.04 * sr)
-            bt = np.arange(m) / sr
-            f = rng.uniform(500, 1200) * (1 + 2 * bt / bt[-1])
-            b = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-bt * 70)
-            bubbles[at:at + m] += b[: n - at] * 0.3
-        x = heel * 0.5 + splash + bubbles
-        x = _room(x, rng, 0.5, 0.2)
+    else:  # wading through shin-deep water: a heavy slosh, the water falling back, a few drops
+        # (no tonal bubbles: the first version's rising chirps sounded like a cartoon)
+        n = int(0.6 * sr)
+        tt = np.arange(n) / sr
+        noise = rng.standard_normal(n)
+        slosh = lowpass(bandpass(noise, sr, 150, 2200), sr, 1400, 1) * env(n, 0.045, 0.22, sr, 3)
+        body = bandpass(rng.standard_normal(n), sr, 120, 500) * env(n, 0.03, 0.15, sr, 3) * 0.8
+        back = np.zeros(n)
+        at = int(rng.uniform(0.12, 0.18) * sr)
+        fall = bandpass(rng.standard_normal(n - at), sr, 400, 3500) * env(n - at, 0.02, 0.18, sr, 4) * 0.45
+        back[at:] = fall
+        drops = np.zeros(n)
+        for k in range(int(rng.integers(3, 6))):
+            at = int(rng.uniform(0.18, 0.45) * sr)
+            m = int(0.012 * sr)
+            click = bandpass(rng.standard_normal(m), sr, 1500, 5000) * np.exp(-np.arange(m) / sr * 400)
+            drops[at:at + m] += click[: n - at] * rng.uniform(0.05, 0.12)
+        x = slosh + body + back + drops + np.pad(heel, (0, n - heel.shape[0])) * 0.25
+        x = _room(x, rng, 0.6, 0.25, 3000)
     return normalize(fade(x, sr), -3)
 
 
