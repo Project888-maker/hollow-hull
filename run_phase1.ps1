@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11f (Phase 2: heroes sized from their head bone)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11g (Phase 2: heroes move with their own animations)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -392,7 +392,10 @@ if ($r.PSObject.Properties["combat"]) {
     Say "`n=== Combat (Phase 2) ==="
     foreach ($c in $r.combat.characters.PSObject.Properties) {
         if ($c.Name -eq "GameMode") { continue }
-        if ($c.Value.ok) { Say "  $($c.Name): Paragon body" "Green" }
+        if ($c.Value.ok) {
+            $moves = if ($c.Value.anim_source -eq "Paragon") { "its own animations" } else { "Epic's combat animations" }
+            Say "  $($c.Name): Paragon body, $moves" "Green"
+        }
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }
     $enemies = 0

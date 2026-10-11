@@ -38,12 +38,15 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # role, health multiplier (applied if the Combat Blueprint exposes a health value)
 # head_cm: height of the head bone after scaling (a 1.8 m man is about 165 cm);
 # Paragon heroes are authored oversized, so each is scaled to this height
+# anim: "native" = the hero's own Paragon anim blueprint (its own walk/run/idle), with the
+# Combat attack montages retargeted onto it; "combat" = Epic's Combat anim blueprint retargeted
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165},
-    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165},
-    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205},
-    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240},
+    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165, "anim": "native"},
+    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "anim": "native"},
+    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "anim": "native"},
+    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "anim": "native"},
 }
+PARAGON_ABP = "/Game/Paragon{0}/Characters/Heroes/{0}/{0}_AnimBlueprint"
 PLAYER_HERO = "Revenant"
 
 # Likely variable names on the Combat Blueprints (they mirror Epic's C++ version).
@@ -323,6 +326,66 @@ def _fit_body(name, mesh, info):
     return scale, radius, half, -half
 
 
+def _montage_slots(montage):
+    try:
+        return [str(t.get_editor_property("slot_name")) for t in montage.get_editor_property("slot_anim_tracks")]
+    except Exception:
+        return []
+
+
+def _set_montage_slot(montage, slot):
+    tracks = montage.get_editor_property("slot_anim_tracks")
+    for t in tracks:
+        t.set_editor_property("slot_name", unreal.Name(slot))
+    montage.set_editor_property("slot_anim_tracks", tracks)
+    H.eal.save_loaded_asset(montage, only_if_is_dirty=False)
+
+
+def _hero_montage_slot(name):
+    """Slot the hero's own attack montages play in (its anim blueprint has a node for it)."""
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    for a in registry.get_assets_by_path(f"/Game/Paragon{name}", recursive=True):
+        if str(a.asset_class_path.asset_name) == "AnimMontage" and "LevelStart" not in str(a.asset_name):
+            slots = _montage_slots(unreal.load_asset(str(a.package_name)))
+            if slots:
+                return slots[0], str(a.asset_name)
+    return None, None
+
+
+def _native_anim_class(name, anims, info):
+    """The hero's own Paragon anim blueprint, made to play the Combat montages; None if unusable."""
+    path = PARAGON_ABP.format(name)
+    if not H.asset_exists(path):
+        info["native_anim"] = f"missing {path}"
+        return None
+    # an anim blueprint that casts to the hero's sample character would never see our character move
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    try:
+        opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
+                                                     include_hard_package_references=True)
+        deps = [str(d) for d in registry.get_dependencies(unreal.Name(path), opts) or []]
+    except Exception as exc:
+        deps = []
+        info["native_deps_error"] = f"{type(exc).__name__}: {exc}"
+    tied = [d for d in deps if "PlayerCharacter" in d]
+    if tied:
+        info["native_anim"] = f"tied to {tied[0]}"
+        return None
+    abp = unreal.load_asset(path)
+    if not abp:
+        info["native_anim"] = f"could not load {path}"
+        return None
+    slot, source = _hero_montage_slot(name)
+    info["native_slot"] = {"slot": slot, "from": source}
+    if slot:
+        for key in ("AM_ComboAttack", "AM_ChargedAttack"):
+            m = anims.get(key)
+            if m and slot not in _montage_slots(m):
+                _set_montage_slot(m, slot)
+                info.setdefault("montage_slot_changed", []).append(m.get_name())
+    return abp.generated_class()
+
+
 def configure_blueprint(name, bp, mesh, anims, info):
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     cdo = unreal.get_default_object(bp.generated_class())
@@ -330,7 +393,14 @@ def configure_blueprint(name, bp, mesh, anims, info):
         comp = cdo.get_editor_property("mesh")
         _call_first(comp, ["set_skeletal_mesh_asset", "set_skeletal_mesh"], mesh)
         comp.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT)
-        comp.set_editor_property("anim_class", anims[ANIM_BP.split("/")[-1]].generated_class())
+        anim_class = None
+        if HEROES[name].get("anim") == "native":
+            try:
+                anim_class = _native_anim_class(name, anims, info)
+            except Exception as exc:
+                info["native_anim"] = f"{type(exc).__name__}: {exc}"
+        info["anim_source"] = "Paragon" if anim_class else "Combat (retargeted)"
+        comp.set_editor_property("anim_class", anim_class or anims[ANIM_BP.split("/")[-1]].generated_class())
         scale, radius, half, z = _fit_body(name, mesh, info)
         comp.set_editor_property("relative_location", unreal.Vector(0, 0, z))
         comp.set_editor_property("relative_rotation", unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0))
