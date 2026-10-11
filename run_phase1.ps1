@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11u (music fixed; real water steps; body no longer stays limp after a hit)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11v (monsters stay inside their bodies after hits; new water steps)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -444,6 +444,7 @@ if ($r.PSObject.Properties["combat"]) {
     elseif ($reach) { Say "  could not widen the enemies' reach: $reach" "Yellow" }
     $st = $r.combat.state_tree
     if ($st -and $st.labels_off -gt 0) { Say "  AI state labels over enemies switched off ($($st.labels_off))" "Green" }
+    elseif ($st -and $st.states -gt 0) { Say "  AI state labels over enemies are off (switched off by an earlier build)" "Green" }
     elseif ($st) { Say "  AI state labels over enemies still on (see combat.state_tree in setup_report.json)" "Yellow" }
     if ($r.combat.life_bars) {
         $bars = $r.combat.life_bars

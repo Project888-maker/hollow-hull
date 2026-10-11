@@ -321,26 +321,45 @@ def step(floor, i):
                           sr, rng.uniform(1500, 3500), 12)
             x[at:at + r.shape[0]] += r[: n - at] * 0.6
         x = _room(x, rng, 0.7, 0.3)
-    else:  # wading through shin-deep water: a heavy slosh, the water falling back, a few drops
-        # (no tonal bubbles: the first version's rising chirps sounded like a cartoon)
-        n = int(0.6 * sr)
-        tt = np.arange(n) / sr
-        noise = rng.standard_normal(n)
-        slosh = lowpass(bandpass(noise, sr, 150, 2200), sr, 1400, 1) * env(n, 0.045, 0.22, sr, 3)
-        body = bandpass(rng.standard_normal(n), sr, 120, 500) * env(n, 0.03, 0.15, sr, 3) * 0.8
-        back = np.zeros(n)
-        at = int(rng.uniform(0.12, 0.18) * sr)
-        fall = bandpass(rng.standard_normal(n - at), sr, 400, 3500) * env(n - at, 0.02, 0.18, sr, 4) * 0.45
-        back[at:] = fall
-        drops = np.zeros(n)
-        for k in range(int(rng.integers(3, 6))):
-            at = int(rng.uniform(0.18, 0.45) * sr)
-            m = int(0.012 * sr)
-            click = bandpass(rng.standard_normal(m), sr, 1500, 5000) * np.exp(-np.arange(m) / sr * 400)
-            drops[at:at + m] += click[: n - at] * rng.uniform(0.05, 0.12)
-        x = slosh + body + back + drops + np.pad(heel, (0, n - heel.shape[0])) * 0.25
-        x = _room(x, rng, 0.6, 0.25, 3000)
+    else:  # wading through shin-deep water
+        x = wade(rng, sr)
+        x = _room(x, rng, 0.5, 0.18, 2500)
     return normalize(fade(x, sr), -3)
+
+
+def bubbles(rng, sr, n, start, spread, count, f_lo, f_hi, level):
+    """Many tiny bubbles, modelled like real ones (van den Doel): each rings at a pitch set
+    by its size, dies within a few milliseconds and glides up slightly as it rises. Lots of
+    small, short ones read as water; a few big, long chirps read as a cartoon."""
+    out = np.zeros(n)
+    for _ in range(count):
+        f0 = np.exp(rng.uniform(np.log(f_lo), np.log(f_hi)))
+        damp = 0.043 * f0 + 0.0014 * f0 ** 1.5
+        m = min(int(6.0 / damp * sr), n)
+        bt = np.arange(m) / sr
+        f = f0 * (1 + 0.1 * damp * bt)
+        b = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-damp * bt)
+        at = int((start + abs(rng.normal(0, spread))) * sr)
+        if at >= n:
+            continue
+        out[at:at + m] += b[: n - at] * level * rng.uniform(0.3, 1.0)
+    return out
+
+
+def wade(rng, sr):
+    """A leg pushing through and a foot coming down in shin-deep water: a low wash of
+    displaced water, a dense burst of small bubbles, the water slapping back, fading drops."""
+    n = int(0.7 * sr)
+    tt = np.arange(n) / sr
+    push = lowpass(bandpass(rng.standard_normal(n), sr, 90, 1500), sr, 700, 1) * env(n, 0.06, 0.25, sr, 3)
+    churn = bandpass(rng.standard_normal(n), sr, 600, 4000) * env(n, 0.02, 0.12, sr, 4) * 0.25
+    burst = bubbles(rng, sr, n, 0.03, 0.05, 140, 1000, 4000, 0.08)
+    slap_at = rng.uniform(0.14, 0.2)
+    slap = bubbles(rng, sr, n, slap_at, 0.03, 60, 900, 2600, 0.07)
+    slap += np.where(tt > slap_at, bandpass(rng.standard_normal(n), sr, 250, 1800)
+                     * np.exp(-np.maximum(tt - slap_at, 0) * 14) * 0.18, 0)
+    drops = bubbles(rng, sr, n, 0.3, 0.12, 8, 900, 2500, 0.05)
+    return lowpass(push + churn + burst + slap + drops, sr, 5000, 1)
 
 
 def hit(i):

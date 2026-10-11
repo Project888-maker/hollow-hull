@@ -17,8 +17,8 @@ start(out)      play time (init_unreal.py starts it on every editor launch, like
                   - a hit sound whenever someone loses health
                   - the level's music (level/<level>.json "music"), with a drum and
                     string layer faded in while a monster is close
-                It also eases Epic's half-limp hit reaction back out, which otherwise
-                lasts until the character lands (see _recover_from_hit).
+                It also settles Epic's half-limp hit reaction, which otherwise lasts
+                until the character lands (see _recover_from_hit).
                 A summary goes to reports/phase1/audio_trace.json. Every Unreal call is
                 guarded: sound can never stop the game, it only goes quiet.
 """
@@ -51,10 +51,11 @@ COMBAT_FADE_IN, COMBAT_FADE_OUT = 2.5, 5.0
 THREAT_CM = 1500          # a living monster this close (and on this deck) starts the fight layer
 CALM_AFTER = 8.0          # seconds without a monster close before the fight layer fades
 STEP_VOLUME = {"player": 0.55, "monster": 0.8}
+SURFACE_VOLUME = {"water": 0.7}  # wading is softer than a boot on steel
 VOICE_VOLUME = 0.9
 PAIN_GAP = 0.7            # seconds between pain cries from one character
 FALLOFF_INNER_CM, FALLOFF_CM = 400.0, 3200.0
-HIT_HOLD, HIT_EASE = 0.35, 0.4  # a hit's limpness shows this long, then eases out over this long
+HIT_HOLD, HIT_GIVE_UP = 0.6, 3.0  # a hit's limpness shows this long; settle it then if on the floor
 
 # Paragon voice cues per hero; {h} is the hero name
 CUE_DIRS = {"Revenant": "/Game/ParagonRevenant/Audio/Cues"}
@@ -312,23 +313,30 @@ def _attack_sounds(c, actor, montage, section, loc):
 
 
 def _recover_from_hit(c, actor, t):
-    """Epic's hit reaction makes the body half limp (physics blend 0.5) and only its landing
-    event makes it solid again. A blow that does not lift the character off the floor never
-    lands, so arms dangled and stretched until a later hit (50 s in the 2026-10-11t run).
-    Ease the limpness back out over HIT_EASE seconds whether or not it landed."""
+    """Epic's hit reaction makes the body half limp (physics blend 0.5, the hips kept
+    animated) and only its landing event makes it solid again. A blow that does not lift the
+    character off the floor never lands, so arms dangled and stretched until a later hit
+    (50 s in the 2026-10-11t run). HIT_HOLD seconds after a hit, if the character is on the
+    floor, do what Epic's landing does: blend weight 0, once.
+    Never ease through in-between weights: any weight above 0 makes Unreal simulate every
+    body again, hips included, and in the 2026-10-11u run that let bodies slide up to 3 m
+    away from their capsules (one fell through the floor when it died)."""
     if c["hit_t"] is None or c["dead"]:
         return
-    k = (t - c["hit_t"] - HIT_HOLD) / HIT_EASE
-    if k < 0:
+    if t - c["hit_t"] < HIT_HOLD:
         return
-    weight = max(0.0, 0.5 * (1.0 - k))
     try:
-        actor.get_editor_property("mesh").set_physics_blend_weight(weight)
-        S["session"]["hit_recoveries"] = S["session"].get("hit_recoveries", 0) + (weight == 0.0)
+        on_ground = actor.get_editor_property("character_movement").is_moving_on_ground()
+    except Exception:
+        on_ground = True
+    if not on_ground and t - c["hit_t"] < HIT_GIVE_UP:
+        return  # still in the air: Epic's own landing will settle it
+    try:
+        actor.get_editor_property("mesh").set_physics_blend_weight(0.0)
+        S["session"]["hit_recoveries"] = S["session"].get("hit_recoveries", 0) + 1
     except Exception as exc:
         _err("hit recovery", exc)
-    if weight == 0.0:
-        c["hit_t"] = None
+    c["hit_t"] = None
 
 
 def _look(actor, t, player_pawn):
@@ -389,8 +397,9 @@ def _look(actor, t, player_pawn):
         c["walked"] = 0.0
     elif c["walked"] >= c["stride"]:
         c["walked"] -= c["stride"] * math.floor(c["walked"] / c["stride"])
-        _play("step " + _surface(loc, c["half_h"]), _ours("step_" + _surface(loc, c["half_h"])), feet,
-              STEP_VOLUME[who], c["pitch"])
+        floor = _surface(loc, c["half_h"])
+        _play("step " + floor, _ours("step_" + floor), feet,
+              STEP_VOLUME[who] * SURFACE_VOLUME.get(floor, 1.0), c["pitch"])
     c["air"] = not on_ground
     c["last"] = loc
     return c, loc
