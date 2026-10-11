@@ -46,7 +46,7 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # skeleton: they carry the AI, combo and damage logic), but the mannequin animations
 # inside them are swapped for the hero's own Paragon ones (see NATIVE_ANIMS).
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165},
+    "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165, "speed": 360, "min_radius": 48},
     "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
     "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300,
@@ -426,6 +426,45 @@ def use_native_animations(name, info):
     return len(swapped)
 
 
+def native_jog_speed(name, info):
+    """The speed (cm/s, unscaled) the hero's own Jog_Fwd was authored for, read from the
+    Paragon blend spaces that place it. None if no blend space says."""
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    speeds = []
+    for a in registry.get_assets_by_path(f"/Game/Paragon{name}", recursive=True):
+        if str(a.asset_class_path.asset_name) not in ("BlendSpace", "BlendSpace1D"):
+            continue
+        try:
+            bs = unreal.load_asset(str(a.package_name))
+            for sample in bs.get_editor_property("sample_data"):
+                anim = sample.get_editor_property("animation")
+                if anim and anim.get_name() == "Jog_Fwd":
+                    v = sample.get_editor_property("sample_value")
+                    sp = max(abs(v.x), abs(v.y))
+                    if 150 <= sp <= 1200:
+                        speeds.append(sp)
+        except Exception:
+            continue
+    info["jog_speed_samples"] = sorted(set(round(x) for x in speeds))
+    return max(speeds) if speeds else None
+
+
+def animation_blueprint_rigs(info):
+    """Control Rigs the Combat anim blueprint runs (one bends Paragon legs wrongly)."""
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    out = {}
+    # the Combat one, and the template's plain one (a possible rig-free replacement)
+    for path in (ANIM_BP, "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"):
+        try:
+            opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
+                                                         include_hard_package_references=True)
+            out[path.split("/")[-1]] = [str(d) for d in registry.get_dependencies(unreal.Name(path), opts) or []]
+        except Exception as exc:
+            out[path.split("/")[-1]] = [f"error: {exc}"]
+    info["anim_blueprint_dependencies"] = out
+    return out
+
+
 def ragdoll_physics(name, mesh, info):
     """A per-bone physics asset for the hero. The Combat characters go limp when hit and
     when they die; the Paragon meshes only carry coarse shape helpers (e.g. Grux_Extents),
@@ -482,6 +521,7 @@ def configure_blueprint(name, bp, mesh, anims, info):
         if pa:
             comp.set_editor_property("physics_asset_override", pa)
         scale, radius, half, z = _fit_body(name, mesh, info)
+        radius = max(radius, HEROES[name].get("min_radius", 0))
         comp.set_editor_property("relative_location", unreal.Vector(0, 0, z))
         comp.set_editor_property("relative_rotation", unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0))
         comp.set_editor_property("relative_scale3d", unreal.Vector(scale, scale, scale))
@@ -503,6 +543,18 @@ def configure_blueprint(name, bp, mesh, anims, info):
                     pass
         info["montage_props_set"] = set_props
     speed = HEROES[name].get("speed")
+    jog = None
+    try:
+        jog = native_jog_speed(name, info)
+    except Exception as exc:
+        info["jog_speed_error"] = f"{type(exc).__name__}: {exc}"
+    scale = (info.get("body") or {}).get("scale", 1.0)
+    if jog:
+        # feet stay planted when the body moves at the speed the jog was made for
+        # (shrunk with the mesh); enemies keep their slower cap for the narrow ship
+        matched = round(jog * scale)
+        speed = min(speed, matched) if speed else matched
+        info["jog_speed"] = {"authored": round(jog), "scaled": matched}
     if speed:  # Epic's enemies are tuned for an open arena; the ship's corridors are 4 m wide
         try:
             cmc = cdo.get_editor_property("character_movement")
@@ -559,6 +611,7 @@ def build_character(name):
     try:
         if name == PLAYER_HERO:
             probe_combat_blueprints()
+            animation_blueprint_rigs(H.report["combat"])
         mesh = unreal.load_asset(PARAGON.format(name))
         manny = unreal.load_asset(MANNY)
         if mesh is None or manny is None:
