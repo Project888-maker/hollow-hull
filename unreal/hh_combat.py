@@ -749,6 +749,7 @@ JOINT_LIMIT_DEFAULT = (35, 35, 20)
 BODY_DAMPING = {"linear_damping": 0.5, "angular_damping": 4.0}
 
 
+ENUMS = {}  # enum values resolved by tame_ragdoll
 SUBOBJECT_SCAN = 20000  # highest object number tried when looking bodies up by name
 
 
@@ -818,14 +819,34 @@ def _bone_paths(name):
     return path
 
 
+def _enum(cls_name, *words, diag=None):
+    """An Unreal enum value by any of its likely Python names (5.7 calls EPhysicsType's
+    PhysType_Default 'PHYS_TYPE_DEFAULT', not 'DEFAULT'). None if the enum has none of them."""
+    cls = getattr(unreal, cls_name, None)
+    if cls is None:
+        return None
+    names = [n for n in dir(cls) if n.isupper()]
+    if diag is not None:
+        diag.setdefault("enums", {})[cls_name] = names[:12]
+    for w in words:
+        if w in names:
+            return getattr(cls, w)
+    for w in words:
+        for n in names:
+            if n.endswith(w):
+                return getattr(cls, n)
+    return None
+
+
 def _set_body(body, physics_type, mass, damping, collide, errors, bone):
-    try:
-        body.set_editor_property("physics_type", physics_type)
-    except Exception as exc:
-        errors.append(f"{bone} physics_type: {exc}")
-    if not collide:
+    if physics_type is not None:
         try:
-            body.set_editor_property("collision_response", unreal.BodyCollisionResponse.BODY_COLLISION_DISABLED)
+            body.set_editor_property("physics_type", physics_type)
+        except Exception as exc:
+            errors.append(f"{bone} physics_type: {exc}")
+    if not collide and ENUMS.get("no_collision") is not None:
+        try:
+            body.set_editor_property("collision_response", ENUMS["no_collision"])
         except Exception as exc:
             errors.append(f"{bone} collision: {exc}")
     try:
@@ -858,11 +879,13 @@ def _set_joint(joint, motion, limits, errors):
     cone = prof.get_editor_property("cone_limit")
     twist = prof.get_editor_property("twist_limit")
     for axis, lim in (("swing1", limits[0]), ("swing2", limits[1])):
-        cone.set_editor_property(f"{axis}_motion", motion)
+        if motion is not None:
+            cone.set_editor_property(f"{axis}_motion", motion)
         if lim:
             cur = cone.get_editor_property(f"{axis}_limit_degrees")
             cone.set_editor_property(f"{axis}_limit_degrees", float(min(cur, lim) if cur > 0 else lim))
-    twist.set_editor_property("twist_motion", motion)
+    if motion is not None:
+        twist.set_editor_property("twist_motion", motion)
     if limits[2]:
         cur = twist.get_editor_property("twist_limit_degrees")
         twist.set_editor_property("twist_limit_degrees", float(min(cur, limits[2]) if cur > 0 else limits[2]))
@@ -883,6 +906,16 @@ def tame_ragdoll(name, pa, info):
     bodies = _subobjects(pa, "SkeletalBodySetup", "skeletal_body_setups", diag)
     joints = _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup", diag)
     out["found"] = {"bodies": len(bodies), "joints": len(joints)}
+    ENUMS.update({
+        "default": _enum("PhysicsType", "PHYS_TYPE_DEFAULT", "DEFAULT", diag=diag),
+        "kinematic": _enum("PhysicsType", "PHYS_TYPE_KINEMATIC", "KINEMATIC"),
+        "limited": _enum("AngularConstraintMotion", "ACM_LIMITED", "LIMITED", diag=diag),
+        "locked": _enum("AngularConstraintMotion", "ACM_LOCKED", "LOCKED"),
+        "no_collision": _enum("BodyCollisionResponse", "BODY_COLLISION_DISABLED", "DISABLED", diag=diag),
+    })
+    missing = [k for k, v in ENUMS.items() if v is None]
+    if missing:
+        errors.append(f"enum values not found: {missing}")
     path_of = _bone_paths(name)
     role = {}
     for body in bodies:
@@ -893,13 +926,13 @@ def tame_ragdoll(name, pa, info):
             continue
         if bone in RAGDOLL_BONES:
             role[bone] = "simulated"
-            _set_body(body, unreal.PhysicsType.DEFAULT, RAGDOLL_BONES[bone], BODY_DAMPING, True, errors, bone)
+            _set_body(body, ENUMS["default"], RAGDOLL_BONES[bone], BODY_DAMPING, True, errors, bone)
         else:
             path = path_of(bone)
             hangs = any(b in RAGDOLL_BONES for b in path[1:]) if path else not any(
                 w in bone.lower() for w in ("weapon", "gun", "ik_", "attach", "root"))
             role[bone] = "riding" if hangs else "kinematic"
-            _set_body(body, unreal.PhysicsType.DEFAULT if hangs else unreal.PhysicsType.KINEMATIC,
+            _set_body(body, ENUMS["default"] if hangs else ENUMS["kinematic"],
                       PASSENGER_MASS, {"linear_damping": 2.0, "angular_damping": 10.0}, False, errors, bone)
         out[role[bone]].append(bone)
     done = 0
@@ -907,9 +940,9 @@ def tame_ragdoll(name, pa, info):
         try:
             bone = str(joint.get_editor_property("default_instance").get_editor_property("constraint_bone1"))
             if role.get(bone, "simulated") == "simulated":
-                _set_joint(joint, unreal.AngularConstraintMotion.ACM_LIMITED, _joint_limits(bone), errors)
+                _set_joint(joint, ENUMS["limited"], _joint_limits(bone), errors)
             else:  # welded to its parent: moves only with it
-                _set_joint(joint, unreal.AngularConstraintMotion.ACM_LOCKED, (0, 0, 0), errors)
+                _set_joint(joint, ENUMS["locked"], (0, 0, 0), errors)
             done += 1
         except Exception as exc:
             errors.append(f"joint: {type(exc).__name__}: {exc}")
@@ -932,8 +965,11 @@ def ragdoll_physics(name, mesh, info):
     path = f"{CHAR_DIR}/PA_HH_{name}"
     if H.asset_exists(path):
         pa = unreal.load_asset(path)
-        tame_ragdoll(name, pa, info)
-        info["physics"] = "per-bone ragdoll, loose parts locked on"
+        try:
+            tame_ragdoll(name, pa, info)
+            info["physics"] = "per-bone ragdoll, loose parts locked on"
+        except Exception as exc:
+            info["physics"] = f"tuning failed: {type(exc).__name__}: {exc}"
         return pa
     makers = []
     try:
@@ -956,7 +992,10 @@ def ragdoll_physics(name, mesh, info):
             if pa.get_path_name().split(".")[0] != path:
                 H.eal.rename_asset(pa.get_path_name().split(".")[0], path)
                 pa = unreal.load_asset(path)
-            tame_ragdoll(name, pa, info)
+            try:
+                tame_ragdoll(name, pa, info)
+            except Exception as exc:
+                info["physics_tuning_error"] = f"{type(exc).__name__}: {exc}"
             H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
             info["physics"] = "made per-bone ragdoll"
             return pa
