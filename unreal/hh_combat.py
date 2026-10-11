@@ -216,7 +216,60 @@ def probe_combat_blueprints():
         except Exception as exc:
             entry["error"] = f"{type(exc).__name__}: {exc}"
     record_controls()
+    try:
+        dump_logic()
+    except Exception as exc:
+        probe["logic_export_error"] = f"{type(exc).__name__}: {exc}"
     _write_probe()
+
+
+LOGIC_DIRS = (COMBAT + "/Blueprints",)
+
+
+def dump_logic():
+    """Write the Combat Blueprints and the enemy's StateTree out as text (Unreal's copy-paste
+    format: every node, pin and setting), so Claude can read how the enemies decide to
+    attack, flank and evade. Goes to Saved/HollowHull/logic; the runner zips it into
+    reports/phase1/combat_logic.zip together with the raw asset files."""
+    out_dir = os.path.join(os.path.dirname(H._report_path()), "logic")
+    os.makedirs(out_dir, exist_ok=True)
+    result = probe.setdefault("logic_export", {})
+    exporter_cls = getattr(unreal, "ObjectExporterT3D", None)
+    if exporter_cls is None:
+        result["error"] = "no ObjectExporterT3D in this Unreal"
+        return
+    paths = []
+    for d in LOGIC_DIRS:
+        try:
+            paths += [str(p).split(".")[0] for p in H.eal.list_assets(d, recursive=True, include_folder=False)]
+        except Exception as exc:
+            result[d] = f"list: {type(exc).__name__}: {exc}"
+    for path in sorted(set(paths)):
+        name = path.split("/")[-1]
+        try:
+            asset = unreal.load_asset(path)
+            if asset is None:
+                continue
+            kind = asset.get_class().get_name()
+            if kind not in ("Blueprint", "StateTree", "EnvQuery", "BlackboardData", "BehaviorTree",
+                            "WidgetBlueprint", "AnimBlueprint", "UserDefinedStruct", "UserDefinedEnum"):
+                continue
+            target = os.path.join(out_dir, f"{name}.t3d")
+            task = unreal.AssetExportTask()
+            task.set_editor_property("object", asset)
+            task.set_editor_property("filename", target)
+            task.set_editor_property("exporter", exporter_cls())
+            for prop, value in (("automated", True), ("prompt", False), ("replace_identical", True),
+                                ("selected", False)):
+                try:
+                    task.set_editor_property(prop, value)
+                except Exception:
+                    pass
+            ok = unreal.Exporter.run_asset_export_task(task)
+            size = os.path.getsize(target) if os.path.exists(target) else 0
+            result[name] = f"{kind}: {'ok' if ok else 'failed'} {size} bytes"
+        except Exception as exc:
+            result[name] = f"{type(exc).__name__}: {exc}"[:200]
 
 
 def _imc_mappings(imc):

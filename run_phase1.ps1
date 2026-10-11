@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11t (joints fixed, play recorder)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11u (reads the enemy AI rules)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -351,6 +351,22 @@ $probe = Join-Path $Project "Saved\HollowHull\combat_probe.json"
 if (Test-Path $probe) { Copy-Item $probe (Join-Path $LogDir "combat_probe.json") -Force }
 $ueLog = Join-Path $Project "Saved\Logs\$ProjectName.log"
 if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
+# the enemies' AI and the Combat Blueprints as text plus the raw asset files, for Claude to read
+try {
+    $stage = Join-Path $env:TEMP "hh_combat_logic"
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force (Join-Path $stage "text") | Out-Null
+    $logicDir = Join-Path $Project "Saved\HollowHull\logic"
+    if (Test-Path $logicDir) { Copy-Item (Join-Path $logicDir "*") (Join-Path $stage "text") -Force }
+    $bpDir = Join-Path $Project "Content\Variant_Combat\Blueprints"
+    if (Test-Path $bpDir) { Copy-Item $bpDir (Join-Path $stage "assets") -Recurse -Force }
+    $zip = Join-Path $LogDir "combat_logic.zip"
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+} catch {
+    Say "  (could not pack combat_logic.zip: $_)" "Yellow"
+}
 
 # --- check ----------------------------------------------------------------
 Say "`n=== Result ==="
@@ -421,5 +437,5 @@ Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine roo
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
 Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
-Say "While you play, a recorder writes reports\phase1\play_trace.json - send it to Claude with the other reports." "Cyan"
+Say "While you play, a recorder writes reports\phase1\play_trace.json - send it and reports\phase1\combat_logic.zip to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null

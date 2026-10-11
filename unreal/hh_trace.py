@@ -88,6 +88,18 @@ def _look(actor, t):
     hp = _prop(actor, "Current HP")
     if hp is not None:
         st["hp"] = round(float(hp), 2)
+    att = _prop(actor, "Is Attacking")
+    if att is not None:
+        st["attacking"] = bool(att)
+    danger = _prop(actor, "Last Danger Time")
+    if danger is not None:
+        st["danger_t"] = round(float(danger), 2)
+    try:
+        ctrl = actor.get_controller()
+        if ctrl is not None and hasattr(ctrl, "get_move_status"):
+            st["ai_move"] = str(ctrl.get_move_status()).split(".")[-1].split(":")[0].lower()
+    except Exception as exc:
+        _err("controller", exc)
     move = _prop(actor, "character_movement")
     if move is not None:
         mode = _prop(move, "movement_mode")
@@ -142,6 +154,12 @@ def _compare(t, who, st):
         _event(t, who, "hp", was=old.get("hp"), now=st.get("hp"))
     if st.get("montage") != old.get("montage"):
         _event(t, who, "action", now=st.get("montage"))
+    if st.get("attacking") != old.get("attacking"):
+        _event(t, who, "attacking", now=st.get("attacking"))
+    if st.get("danger_t") != old.get("danger_t") and st.get("danger_t", -1) > 0:
+        _event(t, who, "senses_danger")
+    if st.get("ai_move") != old.get("ai_move"):
+        _event(t, who, "ai_move", now=st.get("ai_move"))
     if st.get("move") != old.get("move"):
         _event(t, who, "movement", was=old.get("move"), now=st.get("move"))
     if st.get("ragdoll") != old.get("ragdoll"):
