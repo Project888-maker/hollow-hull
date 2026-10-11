@@ -36,11 +36,13 @@ MONTAGES = [COMBAT + "/Anims/AM_ComboAttack", COMBAT + "/Anims/AM_ChargedAttack"
 
 PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # role, health multiplier (applied if the Combat Blueprint exposes a health value)
+# head_cm: height of the head bone after scaling (a 1.8 m man is about 165 cm);
+# Paragon heroes are authored oversized, so each is scaled to this height
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 1.0},
-    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0},
-    "Grux": {"parent": ENEMY_BP, "hp": 2.0},
-    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0},
+    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165},
+    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165},
+    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205},
+    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240},
 }
 PLAYER_HERO = "Revenant"
 
@@ -285,14 +287,40 @@ def _child_blueprint(asset_name, parent_path):
     return bp
 
 
-def _fit_capsule(mesh):
-    """Capsule (radius, half height) and mesh Z offset from the mesh's bounds."""
+def _head_height(mesh, info):
+    """Height of the head bone in the reference pose (feet at 0), or None.
+    The mesh bounds are useless for this: Paragon bounds are padded far beyond the body."""
+    try:
+        skeleton = mesh.get_editor_property("skeleton")
+        pose = unreal.AnimPoseExtensions.get_reference_pose(skeleton)
+        for bone in ("head", "Head", "neck_01", "neck_02"):
+            try:
+                t = unreal.AnimPoseExtensions.get_bone_pose(pose, bone, unreal.AnimPoseSpaces.WORLD)
+            except Exception:
+                continue
+            if t.translation.z > 20:
+                info["head_bone"] = {"name": bone, "z": round(t.translation.z, 1)}
+                return float(t.translation.z) * (1.08 if bone.startswith("neck") else 1.0)
+    except Exception as exc:
+        info["head_error"] = f"{type(exc).__name__}: {exc}"
+    return None
+
+
+def _fit_body(name, mesh, info):
+    """(scale, capsule radius, capsule half height, mesh Z offset) for this hero."""
     b = mesh.get_bounds()
-    ext, org = b.box_extent, b.origin
-    feet = org.z - ext.z
-    half = max(88.0, min(ext.z, 200.0))
-    radius = max(34.0, min(min(ext.x, ext.y) * 0.5, 90.0))
-    return radius, half, -half - feet, {"extent": [round(ext.x), round(ext.y), round(ext.z)], "feet_z": round(feet)}
+    ext = b.box_extent
+    info["bounds_extent"] = [round(ext.x), round(ext.y), round(ext.z)]
+    head = _head_height(mesh, info)
+    if head:
+        scale = max(0.3, min(2.0, HEROES[name]["head_cm"] / head))
+        top = HEROES[name]["head_cm"] + 15  # top of the skull
+    else:  # fall back to the padded bounds, roughly: they run ~25% past the body
+        scale = 1.0
+        top = ext.z * 2 * 0.75
+    half = max(88.0, top / 2)
+    radius = max(34.0, min(half * 0.45, 80.0))
+    return scale, radius, half, -half
 
 
 def configure_blueprint(name, bp, mesh, anims, info):
@@ -303,13 +331,15 @@ def configure_blueprint(name, bp, mesh, anims, info):
         _call_first(comp, ["set_skeletal_mesh_asset", "set_skeletal_mesh"], mesh)
         comp.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT)
         comp.set_editor_property("anim_class", anims[ANIM_BP.split("/")[-1]].generated_class())
-        radius, half, z, bounds = _fit_capsule(mesh)
+        scale, radius, half, z = _fit_body(name, mesh, info)
         comp.set_editor_property("relative_location", unreal.Vector(0, 0, z))
         comp.set_editor_property("relative_rotation", unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0))
+        comp.set_editor_property("relative_scale3d", unreal.Vector(scale, scale, scale))
         cap = cdo.get_editor_property("capsule_component")
         cap.set_editor_property("capsule_radius", radius)
         cap.set_editor_property("capsule_half_height", half)
-        info["body"] = {"radius": round(radius), "half_height": round(half), "mesh_z": round(z), **bounds}
+        info["body"] = {"scale": round(scale, 3), "radius": round(radius), "half_height": round(half),
+                        "mesh_z": round(z)}
         # point the attack variables at this hero's retargeted montages
         set_props = {}
         for montage_name, props in MONTAGE_PROPS.items():
