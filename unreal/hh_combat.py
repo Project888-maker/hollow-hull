@@ -315,7 +315,38 @@ def write_logic_text(out_dir):
     path = os.path.join(os.path.dirname(out_dir), "combat_logic.txt")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("".join(chunks))
+    probe["logic_digest"] = logic_digest(chunks)
     return path
+
+
+# the big character Blueprints: only the lines that say what a node does
+_KEY_LINE = re.compile(r"Begin Object Class=|FunctionReference=|VariableReference=|EventReference=|"
+                       r"CustomFunctionName=|MemberName=|DefaultValue=\"[^\"]+\"|NodeComment=|"
+                       r"LinkedTo=|StateName|Name=\"")
+
+
+def logic_digest(chunks, limit=1_500_000):
+    """The enemy logic as a list of lines inside combat_probe.json (the text file did not
+    make it to Claude): the AI files whole, the large character Blueprints filtered."""
+    out, total = [], 0
+    for chunk in chunks:
+        lines = chunk.splitlines()
+        title = next((x for x in lines if x.startswith("########")), "")
+        big = "BP_CombatEnemy" in title or "BP_CombatCharacter" in title
+        for line in lines:
+            line = line.strip()
+            if not line or (big and line != title and not _KEY_LINE.search(line)):
+                continue
+            if big and "CustomProperties Pin" in line:
+                # keep the pin's name, value and links only
+                keep = re.findall(r'PinName="[^"]*"|DefaultValue="[^"]+"|DefaultObject="[^"]+"|LinkedTo=\([^)]*\)', line)
+                line = "Pin " + " ".join(keep)
+            total += len(line) + 1
+            if total > limit:
+                out.append("... (cut: size limit)")
+                return out
+            out.append(line)
+    return out
 
 
 def _imc_mappings(imc):

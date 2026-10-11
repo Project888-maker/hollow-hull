@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11v (Khaimera idle fix, enemy AI rules as text)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11w (enemy AI rules inside combat_probe.json)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
