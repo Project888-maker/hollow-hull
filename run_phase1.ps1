@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11p (Revenant shoots, run speed table fixed, no launching, respawn as Revenant)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11q (no more jelly wobble on hits, ragdoll fixed, no slow-motion walk)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -397,6 +397,9 @@ if ($r.PSObject.Properties["combat"]) {
             $pace = if ($c.Value.walk_speed.now) { ", moves at $($c.Value.walk_speed.now) cm/s" } else { "" }
             Say "  $($c.Name): Paragon body, $moves$pace" "Green"
             if (-not $c.Value.foot_ik.off) { Say "    (foot adjuster could not be switched off for $($c.Name); legs may still bend)" "Yellow" }
+            $rd = $c.Value.ragdoll
+            if ($rd -and $rd.simulated.Count -gt 0) { Say "    ragdoll: $($rd.simulated.Count) body parts swing, $($rd.riding.Count) loose parts locked on" "Green" }
+            else { Say "    (ragdoll for $($c.Name) could not be adjusted; hits may still make it wobble)" "Yellow" }
         }
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }

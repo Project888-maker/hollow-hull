@@ -17,6 +17,7 @@ Saved/HollowHull/combat_probe.json, so the next round can be precise.
 """
 
 import json
+import math
 import os
 import re
 import traceback
@@ -557,6 +558,8 @@ def _speed_axis(bs):
 
 
 _AXES = ("x", "y", "z")
+MIN_RATE = 0.75  # slowest a locomotion cycle may play before it reads as slow motion
+PLAYER_PACE = 1.15  # Revenant moves (and his jog plays) this much faster than authored
 
 
 def fit_locomotion_blendspace(name, jog_speed, scale, info):
@@ -616,8 +619,13 @@ def fit_locomotion_blendspace(name, jog_speed, scale, info):
                 smp.set_editor_property("sample_value", v)
                 anim = anim_of(smp)
                 own = natural_speed(anim) if anim and speed_of(smp) > 0 else None
+                if own and speed_of(smp) < own * MIN_RATE:
+                    # no walk of their own: a jog played at half speed looks like slow
+                    # motion, so the slot moves up to where the jog still looks like a jog
+                    setattr(v, ax, math.copysign(own * MIN_RATE, getattr(v, ax)))
+                    smp.set_editor_property("sample_value", v)
                 if own:
-                    smp.set_editor_property("rate_scale", min(1.6, max(0.4, speed_of(smp) / own)))
+                    smp.set_editor_property("rate_scale", min(1.6, max(MIN_RATE, speed_of(smp) / own)))
             bs.set_editor_property("sample_data", samples)
             H.eal.save_loaded_asset(bs, only_if_is_dirty=False)
             entry["after"] = [[anim_of(x).get_name() if anim_of(x) else "", round(speed_of(x)),
@@ -720,34 +728,161 @@ def animation_blueprint_rigs(info):
     return out
 
 
-LOOSE_BONE_WORDS = ("weapon", "gun", "pistol", "sword", "blade", "axe", "scythe", "prop", "ik_", "attach")
+# Bones that carry the ragdoll, with masses in kg for a ~80 kg body. Every other body
+# (cloth strips, tails, twist bones, Khaimera's hidden ghost-beast skeleton) is locked
+# rigidly to the bone it hangs from, light and without collision, so it rides along
+# instead of flapping about. A body with no ragdoll bone above it (a gun under an IK
+# bone at the root) has nothing to hang from and follows the animation (kinematic).
+RAGDOLL_BONES = {
+    "pelvis": 12.0, "spine_01": 8.0, "spine_02": 8.0, "spine_03": 10.0, "neck_01": 2.0, "head": 5.0,
+    "clavicle_l": 1.5, "clavicle_r": 1.5, "upperarm_l": 2.5, "upperarm_r": 2.5,
+    "lowerarm_l": 1.5, "lowerarm_r": 1.5, "hand_l": 0.6, "hand_r": 0.6,
+    "thigh_l": 9.0, "thigh_r": 9.0, "calf_l": 4.0, "calf_r": 4.0, "foot_l": 1.2, "foot_r": 1.2,
+}
+PASSENGER_MASS = 0.3
+# joint limits in degrees (swing1, swing2, twist); spine, neck and head bend less
+JOINT_LIMITS = {"spine": (20, 20, 10), "neck": (25, 25, 15), "head": (25, 25, 15), "pelvis": (20, 20, 10)}
+JOINT_LIMIT_DEFAULT = (35, 35, 20)
+# slows limbs down: a hit makes the body sway instead of flail
+BODY_DAMPING = {"linear_damping": 0.5, "angular_damping": 4.0}
 
 
-def pin_loose_bodies(name, pa, info):
-    """Bodies whose bone does not hang off the pelvis (Revenant's gun sits under an IK bone
-    at the root) have nothing holding them to the body; when the character went limp they
-    flew off on their own. They are made kinematic: they follow the animation instead."""
+def _subobjects(pa, cls_name, prop):
+    """The physics asset's bodies or joints. Its list properties are not readable from
+    Python in 5.7, so fall back to the loaded objects that live inside the asset."""
+    try:
+        return list(pa.get_editor_property(prop))
+    except Exception:
+        pass
+    cls = getattr(unreal, cls_name, None)
+    if cls is None:
+        return []
+    prefix = pa.get_path_name() + ":"
+    return [o for o in unreal.ObjectIterator(cls) if o.get_path_name().startswith(prefix)]
+
+
+def _joint_limits(bone):
+    b = bone.lower()
+    for word, lim in JOINT_LIMITS.items():
+        if word in b:
+            return lim
+    return JOINT_LIMIT_DEFAULT
+
+
+def _bone_paths(name):
+    """bone -> its chain up to the root, read from the hero's idle; {} if unavailable."""
     native = _native_assets(name)
-    ref_anim = unreal.load_asset(native["Idle"]) if "Idle" in native else None
-    pinned = []
-    bodies = list(pa.get_editor_property("skeletal_body_setups"))
+    anim = unreal.load_asset(native["Idle"]) if "Idle" in native else None
+
+    def path(bone):
+        if anim is None:
+            return None
+        try:
+            return [str(b) for b in unreal.AnimationLibrary.find_bone_path_to_root(anim, bone)]
+        except Exception:
+            return None
+    return path
+
+
+def _set_body(body, physics_type, mass, damping, collide, errors, bone):
+    try:
+        body.set_editor_property("physics_type", physics_type)
+    except Exception as exc:
+        errors.append(f"{bone} physics_type: {exc}")
+    if not collide:
+        try:
+            body.set_editor_property("collision_response", unreal.BodyCollisionResponse.BODY_COLLISION_DISABLED)
+        except Exception as exc:
+            errors.append(f"{bone} collision: {exc}")
+    try:
+        inst = body.get_editor_property("default_instance")
+    except Exception as exc:
+        errors.append(f"{bone} instance: {exc}")
+        return
+    for prop, value in damping.items():
+        try:
+            inst.set_editor_property(prop, value)
+        except Exception as exc:
+            errors.append(f"{bone} {prop}: {exc}")
+    if mass:
+        # a fixed mass: Khaimera's bodies came out weightless (zero-scale warnings), which
+        # made her ragdoll explode and her death trip an engine check (zero total mass)
+        try:
+            inst.set_editor_property("override_mass", True)
+            inst.set_editor_property("mass_in_kg_override", float(mass))
+        except Exception as exc:
+            errors.append(f"{bone} mass: {exc}")
+    try:
+        body.set_editor_property("default_instance", inst)
+    except Exception as exc:
+        errors.append(f"{bone} set instance: {exc}")
+
+
+def _set_joint(joint, motion, limits, errors):
+    inst = joint.get_editor_property("default_instance")
+    prof = inst.get_editor_property("profile_instance")
+    cone = prof.get_editor_property("cone_limit")
+    twist = prof.get_editor_property("twist_limit")
+    for axis, lim in (("swing1", limits[0]), ("swing2", limits[1])):
+        cone.set_editor_property(f"{axis}_motion", motion)
+        if lim:
+            cur = cone.get_editor_property(f"{axis}_limit_degrees")
+            cone.set_editor_property(f"{axis}_limit_degrees", float(min(cur, lim) if cur > 0 else lim))
+    twist.set_editor_property("twist_motion", motion)
+    if limits[2]:
+        cur = twist.get_editor_property("twist_limit_degrees")
+        twist.set_editor_property("twist_limit_degrees", float(min(cur, limits[2]) if cur > 0 else limits[2]))
+    prof.set_editor_property("cone_limit", cone)
+    prof.set_editor_property("twist_limit", twist)
+    inst.set_editor_property("profile_instance", prof)
+    joint.set_editor_property("default_instance", inst)
+
+
+def tame_ragdoll(name, pa, info):
+    """When hit, the Combat characters go half-limp for a moment (Epic's hit reaction blends
+    in ragdoll); when killed, fully limp. The generated physics assets had a body on every
+    cloth strip, tail and gun bone with loose joints, so a hit set everything wobbling like
+    jelly. Now only the main skeleton swings, with real masses, joint limits and damping."""
+    out = info.setdefault("ragdoll", {"simulated": [], "riding": [], "kinematic": [], "errors": []})
+    errors = out["errors"]
+    bodies = _subobjects(pa, "SkeletalBodySetup", "skeletal_body_setups")
+    joints = _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup")
+    out["found"] = {"bodies": len(bodies), "joints": len(joints)}
+    path_of = _bone_paths(name)
+    role = {}
     for body in bodies:
-        bone = str(body.get_editor_property("bone_name"))
-        loose = None
-        if ref_anim is not None:
-            try:
-                path = [str(b) for b in unreal.AnimationLibrary.find_bone_path_to_root(ref_anim, bone)]
-                loose = "pelvis" not in path
-            except Exception:
-                loose = None
-        if loose is None:
-            loose = any(w in bone.lower() for w in LOOSE_BONE_WORDS)
-        if loose:
-            body.set_editor_property("physics_type", unreal.PhysicsType.KINEMATIC)
-            pinned.append(bone)
-    if pinned:
+        try:
+            bone = str(body.get_editor_property("bone_name"))
+        except Exception as exc:
+            errors.append(f"bone_name: {exc}")
+            continue
+        if bone in RAGDOLL_BONES:
+            role[bone] = "simulated"
+            _set_body(body, unreal.PhysicsType.DEFAULT, RAGDOLL_BONES[bone], BODY_DAMPING, True, errors, bone)
+        else:
+            path = path_of(bone)
+            hangs = any(b in RAGDOLL_BONES for b in path[1:]) if path else not any(
+                w in bone.lower() for w in ("weapon", "gun", "ik_", "attach", "root"))
+            role[bone] = "riding" if hangs else "kinematic"
+            _set_body(body, unreal.PhysicsType.DEFAULT if hangs else unreal.PhysicsType.KINEMATIC,
+                      PASSENGER_MASS, {"linear_damping": 2.0, "angular_damping": 10.0}, False, errors, bone)
+        out[role[bone]].append(bone)
+    done = 0
+    for joint in joints:
+        try:
+            bone = str(joint.get_editor_property("default_instance").get_editor_property("constraint_bone1"))
+            if role.get(bone, "simulated") == "simulated":
+                _set_joint(joint, unreal.AngularConstraintMotion.ACM_LIMITED, _joint_limits(bone), errors)
+            else:  # welded to its parent: moves only with it
+                _set_joint(joint, unreal.AngularConstraintMotion.ACM_LOCKED, (0, 0, 0), errors)
+            done += 1
+        except Exception as exc:
+            errors.append(f"joint: {type(exc).__name__}: {exc}")
+    out["joints_set"] = done
+    del errors[12:]
+    if bodies or joints:
         H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
-    info["physics_pinned"] = pinned
+    return out
 
 
 def ragdoll_physics(name, mesh, info):
@@ -762,7 +897,8 @@ def ragdoll_physics(name, mesh, info):
     path = f"{CHAR_DIR}/PA_HH_{name}"
     if H.asset_exists(path):
         pa = unreal.load_asset(path)
-        pin_loose_bodies(name, pa, info)
+        tame_ragdoll(name, pa, info)
+        info["physics"] = "per-bone ragdoll, loose parts locked on"
         return pa
     makers = []
     try:
@@ -785,7 +921,7 @@ def ragdoll_physics(name, mesh, info):
             if pa.get_path_name().split(".")[0] != path:
                 H.eal.rename_asset(pa.get_path_name().split(".")[0], path)
                 pa = unreal.load_asset(path)
-            pin_loose_bodies(name, pa, info)
+            tame_ragdoll(name, pa, info)
             H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
             info["physics"] = "made per-bone ragdoll"
             return pa
@@ -842,7 +978,7 @@ def configure_blueprint(name, bp, mesh, anims, info, stats=True):
     if jog:
         # feet stay planted when the body moves at the speed the jog was made for
         # (shrunk with the mesh); enemies keep their slower cap for the narrow ship
-        matched = round(jog * scale)
+        matched = round(jog * scale * (PLAYER_PACE if name == PLAYER_HERO else 1.0))
         speed = matched if name == PLAYER_HERO else min(speed, matched)
         info["jog_speed"] = {"authored": round(jog), "scaled": matched}
         if mesh is not None:
