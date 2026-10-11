@@ -242,6 +242,8 @@ def _write():
 
 
 def _tick(dt):
+    if S.get("paused"):  # hh_setup is building
+        return
     try:
         S["max_dt"] = max(S["max_dt"], dt)
         now = time.time()

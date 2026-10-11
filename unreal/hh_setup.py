@@ -630,7 +630,17 @@ STAGES = ([("load", stage_load), ("inventory", stage_inventory), ("materials", s
 state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 
+def _pause_play_helpers(paused):
+    """The play recorder and sound player (started by init_unreal.py) tick every frame;
+    keep them out of the way while the build compiles and saves assets."""
+    for name in ("hh_trace", "hh_audio"):
+        mod = sys.modules.get(name)
+        if mod is not None and isinstance(getattr(mod, "S", None), dict):
+            mod.S["paused"] = paused
+
+
 def finish(ok):
+    _pause_play_helpers(False)
     unreal.unregister_slate_post_tick_callback(state["handle"])
     report["finished"] = True
     expected = len(ctx.get("manifest", {}).get("pieces", [])) or -1
@@ -703,6 +713,7 @@ def _advance():
         finish(True)
 
 
+_pause_play_helpers(True)
 report.update({"ok": False, "finished": False, "stage": "waiting for editor"})
 write_report()
 log(f"queued {len(STAGES)} stages; starting after the editor settles")

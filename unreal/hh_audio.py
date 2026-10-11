@@ -178,11 +178,12 @@ def _game_world():
 
 
 def _sound(path):
+    # not EditorAssetLibrary.does_asset_exist: the editor's asset functions refuse to run
+    # during Play and answer "no", which silenced every sound in the 2026-10-11s run
     if path not in S["sounds"]:
         snd = None
         try:
-            if unreal.EditorAssetLibrary.does_asset_exist(path):
-                snd = unreal.load_asset(path)
+            snd = unreal.load_asset(path)
         except Exception as exc:
             _err("load " + path, exc)
         S["sounds"][path] = snd
@@ -294,10 +295,12 @@ def _attack_sounds(c, actor, montage, section, loc):
         S["sections"][name].append(section)
     if "Attack" not in name:
         return
+    # a charged attack runs Default -> Charge -> Attack; only the last one is the blow
+    if re.search(r"charge|loop|windup", section or "", re.I) or ("Charged" in name and section == "Default"):
+        return
     hero = c["hero"]
     if hero == "Revenant":
-        if not re.search(r"charge|loop|windup|start", section or "", re.I):
-            _play("gunshot", _ours("gunshot"), loc, 0.9)
+        _play("gunshot", _ours("gunshot"), loc, 0.9)
         if random.random() < 0.35:
             _play("voice swing", _voice(hero, "Effort_Attack"), loc, VOICE_VOLUME * 0.7)
         return
@@ -427,6 +430,18 @@ def _end_session():
 
 
 def _tick(_dt):
+    # paused while hh_setup builds: no Unreal calls from inside the build's asset work
+    # (the 2026-10-11s build crashed in Python during a Slate tick while compiling Sevarog)
+    if S.get("paused") or S.get("busy"):
+        return
+    S["busy"] = True
+    try:
+        _tick_inner()
+    finally:
+        S["busy"] = False
+
+
+def _tick_inner():
     try:
         world = _game_world()
         if world is None:
