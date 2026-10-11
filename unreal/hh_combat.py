@@ -63,7 +63,7 @@ HEROES = {
 }
 # retargeted mannequin animation (name without the hero suffix) -> the hero's own, first that exists
 NATIVE_ANIMS = {
-    "MM_Idle": ["Idle"],
+    "MM_Idle": ["Idle_NonAdditive", "Idle", "Idle_Relaxed_A", "Idle_Alternate"],
     "MF_Unarmed_Jog_Fwd": ["Jog_Fwd"], "MF_Unarmed_Jog_Fwd_Left": ["Jog_Fwd"], "MF_Unarmed_Jog_Fwd_Right": ["Jog_Fwd"],
     "MF_Unarmed_Jog_Bwd": ["Jog_Bwd"], "MF_Unarmed_Jog_Bwd_Left": ["Jog_Bwd"], "MF_Unarmed_Jog_Bwd_Right": ["Jog_Bwd"],
     "MF_Unarmed_Jog_Left": ["Jog_Left", "Jog_Lft"], "MF_Unarmed_Jog_Right": ["Jog_Right", "Jog_Rgt"],
@@ -270,6 +270,52 @@ def dump_logic():
             result[name] = f"{kind}: {'ok' if ok else 'failed'} {size} bytes"
         except Exception as exc:
             result[name] = f"{type(exc).__name__}: {exc}"[:200]
+    try:
+        text = write_logic_text(out_dir)
+        result["_text"] = f"{os.path.getsize(text)} bytes"
+    except Exception as exc:
+        result["_text"] = f"{type(exc).__name__}: {exc}"[:200]
+
+
+# the files that decide how enemies fight, in reading order
+LOGIC_TEXT = ("ST_CombatEnemy", "StateTreeTask_", "StateTreeCondition_", "EnvQuery", "BP_CombatAIController",
+              "BP_CombatEnemy", "BP_CombatCharacter")
+_NOISE = [re.compile(p) for p in (
+    r"PinId=[0-9A-F]{32},", r"PersistentGuid=[0-9A-F]{32},", r"NodeGuid=[0-9A-F]{32}",
+    r"bHidden=False,", r"bNotConnectable=False,", r"bDefaultValueIsReadOnly=False,",
+    r"bDefaultValueIsIgnored=False,", r"bAdvancedView=False,", r"bOrphanedPin=False,",
+    r"PinType\.PinSubCategory=\"\",", r"PinType\.PinSubCategoryMemberReference=\(\),",
+    r"PinType\.PinValueType=\(\),", r"PinType\.ContainerType=None,", r"PinType\.bIsReference=False,",
+    r"PinType\.bIsConst=False,", r"PinType\.bIsWeakPointer=False,", r"PinType\.bIsUObjectWrapper=False,",
+    r"PinType\.bSerializeAsSinglePrecisionFloat=False,", r"PinFriendlyName=NSLOCTEXT\([^)]*\),",
+    r"PinToolTip=\"[^\"]*\",")]
+_DROP = re.compile(r"^\s*(NodePosX|NodePosY|NodeWidth|NodeHeight|ErrorType|bCommentBubble|"
+                   r"EnabledState|bIsNodeEnabled|bHasCompilerMessage|AdvancedPinDisplay)=")
+
+
+def write_logic_text(out_dir):
+    """One trimmed text file of the enemy logic (combat_logic.txt next to the reports):
+    the copy-paste text with ids, positions and default flags removed."""
+    names = sorted(f for f in os.listdir(out_dir) if f.endswith(".t3d"))
+    ordered = [f for key in LOGIC_TEXT for f in names if f.startswith(key)]
+    seen, chunks = set(), []
+    for f in ordered:
+        if f in seen:
+            continue
+        seen.add(f)
+        with open(os.path.join(out_dir, f), encoding="utf-8", errors="replace") as fh:
+            lines = []
+            for line in fh:
+                if _DROP.match(line):
+                    continue
+                for rx in _NOISE:
+                    line = rx.sub("", line)
+                lines.append(line.rstrip() + "\n")
+        chunks.append(f"\n######## {f} ########\n" + "".join(lines))
+    path = os.path.join(os.path.dirname(out_dir), "combat_logic.txt")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("".join(chunks))
+    return path
 
 
 def _imc_mappings(imc):
@@ -503,7 +549,7 @@ def use_native_animations(name, info):
             current = unreal.load_asset(copy)
             if current is None or current.get_path_name().startswith(f"/Game/Paragon{name}/"):
                 continue  # already swapped by an earlier run (the copy is now a redirector)
-            target = next((native[c] for c in candidates if c in native), None)
+            target = next((native[c] for c in candidates if c in native and not _is_additive(native[c])), None)
             if not target:
                 missing.append(base)
                 continue
@@ -519,6 +565,87 @@ def use_native_animations(name, info):
     if missing:
         info["native_missing"] = missing
     return len(swapped)
+
+
+def _is_additive(anim_or_path):
+    """True for an animation that only stores changes on top of another pose (Paragon's
+    Khaimera 'Idle'): played on its own every bone shrinks to nothing."""
+    try:
+        anim = unreal.load_asset(anim_or_path) if isinstance(anim_or_path, str) else anim_or_path
+        return "NONE" not in str(anim.get_editor_property("additive_anim_type")).upper()
+    except Exception:
+        return False
+
+
+def _full_pose_for(name, anim, native):
+    """A full-pose stand-in for an additive animation of the hero, or None."""
+    base = anim.get_name()
+    tries = [f"{base}_NonAdditive", base.replace("_additive", "").replace("_Additive", "")]
+    if "idle" in base.lower():
+        tries += NATIVE_ANIMS["MM_Idle"]
+    for t in tries:
+        if t in native and t != base and not _is_additive(native[t]):
+            return unreal.load_asset(native[t])
+    return None
+
+
+def replace_additive_anims(name, info):
+    """Earlier runs put Khaimera's additive 'Idle' into her blend space and anim blueprint,
+    so whenever she stood still she collapsed into a tiny heap (and the log filled with
+    zero-scale body warnings). Every additive animation the hero's anim blueprint plays
+    directly or through a blend space is replaced by a full-pose one."""
+    native = _native_assets(name)
+    report = info.setdefault("additive_fixed", {})
+    abp_path = f"/Game/{ANIM_BP.split('/')[-1]}_{name}"
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
+                                                 include_hard_package_references=True)
+    for dep in registry.get_dependencies(unreal.Name(abp_path), opts) or []:
+        try:
+            asset = unreal.load_asset(str(dep))
+            if not isinstance(asset, unreal.BlendSpace):
+                continue
+            samples = list(asset.get_editor_property("sample_data"))
+            changed = False
+            for smp in samples:
+                anim = smp.get_editor_property("animation")
+                if anim and _is_additive(anim):
+                    full = _full_pose_for(name, anim, native)
+                    if full:
+                        smp.set_editor_property("animation", full)
+                        report[f"{asset.get_name()}:{anim.get_name()}"] = full.get_name()
+                        changed = True
+                    else:
+                        report[f"{asset.get_name()}:{anim.get_name()}"] = "no full-pose version"
+            if changed:
+                asset.set_editor_property("sample_data", samples)
+                H.eal.save_loaded_asset(asset, only_if_is_dirty=False)
+        except Exception as exc:
+            report[str(dep)] = f"{type(exc).__name__}: {exc}"[:200]
+    # sequence players inside the anim blueprint (the idle state of its state machine)
+    abp = unreal.load_asset(abp_path)
+    node_cls = getattr(unreal, "AnimGraphNode_SequencePlayer", None)
+    if abp is None or node_cls is None or not hasattr(unreal, "ObjectIterator"):
+        return
+    touched = False
+    for gnode in unreal.ObjectIterator(node_cls):
+        try:
+            if not gnode.get_path_name().startswith(abp_path + "."):
+                continue
+            node = gnode.get_editor_property("node")
+            seq = node.get_editor_property("sequence")
+            if seq and _is_additive(seq):
+                full = _full_pose_for(name, seq, native)
+                if full:
+                    node.set_editor_property("sequence", full)
+                    gnode.set_editor_property("node", node)
+                    report[f"{gnode.get_name()}:{seq.get_name()}"] = full.get_name()
+                    touched = True
+        except Exception as exc:
+            report[gnode.get_name()] = f"{type(exc).__name__}: {exc}"[:200]
+    if touched:
+        unreal.BlueprintEditorLibrary.compile_blueprint(abp)
+        H.eal.save_loaded_asset(abp, only_if_is_dirty=False)
 
 
 def native_jog_speed(name, info):
@@ -799,7 +926,7 @@ PASSENGER_MASS = 0.3
 JOINT_LIMITS = {"spine": (20, 20, 10), "neck": (25, 25, 15), "head": (25, 25, 15), "pelvis": (20, 20, 10)}
 JOINT_LIMIT_DEFAULT = (35, 35, 20)
 # slows limbs down: a hit makes the body sway instead of flail
-BODY_DAMPING = {"linear_damping": 0.5, "angular_damping": 4.0}
+BODY_DAMPING = {"linear_damping": 0.5, "angular_damping": 8.0}
 
 
 ENUMS = {}  # enum values resolved by tame_ragdoll
@@ -1382,6 +1509,10 @@ def build_character(name):
                 disable_foot_ik(name, info)
             except Exception as exc:
                 info.setdefault("foot_ik", {})["error"] = f"{type(exc).__name__}: {exc}"
+            try:
+                replace_additive_anims(name, info)
+            except Exception as exc:
+                info["additive_error"] = f"{type(exc).__name__}: {exc}"
             # the idle copy is gone once the hero's own animations are wired in
             idle = unreal.load_asset(f"/Game/MM_Idle_{name}")  # a redirector to the hero's Idle once swapped
             native = idle is None or idle.get_path_name().startswith(f"/Game/Paragon{name}/")

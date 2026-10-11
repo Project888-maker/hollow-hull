@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11u (reads the enemy AI rules)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11v (Khaimera idle fix, enemy AI rules as text)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -352,6 +352,8 @@ if (Test-Path $probe) { Copy-Item $probe (Join-Path $LogDir "combat_probe.json")
 $ueLog = Join-Path $Project "Saved\Logs\$ProjectName.log"
 if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
 # the enemies' AI and the Combat Blueprints as text plus the raw asset files, for Claude to read
+$logicText = Join-Path $Project "Saved\HollowHull\combat_logic.txt"
+if (Test-Path $logicText) { Copy-Item $logicText (Join-Path $LogDir "combat_logic.txt") -Force }
 try {
     $stage = Join-Path $env:TEMP "hh_combat_logic"
     Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
@@ -413,6 +415,10 @@ if ($r.PSObject.Properties["combat"]) {
             $pace = if ($c.Value.walk_speed.now) { ", moves at $($c.Value.walk_speed.now) cm/s" } else { "" }
             Say "  $($c.Name): Paragon body, $moves$pace" "Green"
             if (-not $c.Value.foot_ik.off) { Say "    (foot adjuster could not be switched off for $($c.Name); legs may still bend)" "Yellow" }
+            if ($c.Value.additive_fixed) {
+                $fx = @($c.Value.additive_fixed.PSObject.Properties | Where-Object { $_.Value -notmatch 'no full-pose|Error' })
+                if ($fx.Count -gt 0) { Say "    standing pose fixed ($($fx.Count) places used a partial 'Idle' that shrank the body)" "Green" }
+            }
             $rd = $c.Value.ragdoll
             if ($rd -and $rd.simulated.Count -gt 0 -and $rd.joints_set -gt 0) {
                 Say "    ragdoll: $($rd.simulated.Count) body parts swing, $($rd.kinematic.Count) loose parts ride along, $($rd.joints_set) of $($rd.found.joints) joints set" "Green"
@@ -437,5 +443,5 @@ Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine roo
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
 Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
-Say "While you play, a recorder writes reports\phase1\play_trace.json - send it and reports\phase1\combat_logic.zip to Claude with the other reports." "Cyan"
+Say "While you play, a recorder writes reports\phase1\play_trace.json - send it and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null
