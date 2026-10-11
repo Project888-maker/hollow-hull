@@ -731,10 +731,10 @@ def animation_blueprint_rigs(info):
 
 
 # Bones that carry the ragdoll, with masses in kg for a ~80 kg body. Every other body
-# (cloth strips, tails, twist bones, Khaimera's hidden ghost-beast skeleton) is locked
-# rigidly to the bone it hangs from, light and without collision, so it rides along
-# instead of flapping about. A body with no ragdoll bone above it (a gun under an IK
-# bone at the root) has nothing to hang from and follows the animation (kinematic).
+# (cloth strips, tails, twist bones, guns, Khaimera's hidden ghost-beast skeleton) gets
+# its joint freed and stops simulating, without collision: its bone then simply rides
+# the bone it hangs from instead of flapping about. Bodies between two ragdoll bones
+# (Khaimera's twist-bone upper arm) keep carrying the limb.
 RAGDOLL_BONES = {
     "pelvis": 12.0, "spine_01": 8.0, "spine_02": 8.0, "spine_03": 10.0, "neck_01": 2.0, "head": 5.0,
     "clavicle_l": 1.5, "clavicle_r": 1.5, "upperarm_l": 2.5, "upperarm_r": 2.5,
@@ -845,10 +845,15 @@ def _set_body(body, physics_type, mass, damping, collide, errors, bone):
         except Exception as exc:
             errors.append(f"{bone} physics_type: {exc}")
     if not collide and ENUMS.get("no_collision") is not None:
-        try:
-            body.set_editor_property("collision_response", ENUMS["no_collision"])
-        except Exception as exc:
-            errors.append(f"{bone} collision: {exc}")
+        # the engine spells this property 'CollisionReponse'
+        for prop in ("collision_reponse", "collision_response"):
+            try:
+                body.set_editor_property(prop, ENUMS["no_collision"])
+                break
+            except Exception as exc:
+                last = exc
+        else:
+            errors.append(f"{bone} collision: {last}")
     try:
         inst = body.get_editor_property("default_instance")
     except Exception as exc:
@@ -873,81 +878,236 @@ def _set_body(body, physics_type, mass, damping, collide, errors, bone):
         errors.append(f"{bone} set instance: {exc}")
 
 
-def _set_joint(joint, motion, limits, errors):
-    inst = joint.get_editor_property("default_instance")
-    prof = inst.get_editor_property("profile_instance")
-    cone = prof.get_editor_property("cone_limit")
-    twist = prof.get_editor_property("twist_limit")
-    for axis, lim in (("swing1", limits[0]), ("swing2", limits[1])):
-        if motion is not None:
+def _outputs(result):
+    """A Blueprint function's outputs as a list, without the joint handle it was given
+    (Python hands back by-reference arguments along with the real outputs)."""
+    items = list(result) if isinstance(result, (tuple, list)) else [result]
+    return [v for v in items if "Accessor" not in type(v).__name__]
+
+
+class _AccessorJoint:
+    """A joint edited through Unreal's Blueprint joint functions (PhysicsAsset.get_constraints
+    + ConstraintInstanceBlueprintLibrary). The joint's own settings struct cannot be read from
+    Python in 5.7, so editing it directly failed on every joint."""
+
+    def __init__(self, lib, acc):
+        self.lib, self.acc = lib, acc
+        names = [str(v) for v in _outputs(lib.get_attached_body_names(acc))]
+        if len(names) < 2:
+            raise RuntimeError(f"body names came back as {names}")
+        self.parent, self.child = names[-2], names[-1]
+
+    def angular(self):
+        return _outputs(self.lib.get_angular_limits(self.acc))[-6:]
+
+    def limit(self, limits):
+        cur = self.angular()  # swing1 motion, swing1 angle, swing2 motion, swing2 angle, twist motion, twist angle
+        lim = [float(min(c, l)) if c > 0 else float(l) for c, l in zip((cur[1], cur[3], cur[5]), limits)]
+        m = ENUMS["limited"]
+        self.lib.set_angular_limits(self.acc, m, lim[0], m, lim[1], m, lim[2])
+
+    def free(self):
+        """No pull either way: the loose part's body stays put, its bone rides its parent."""
+        f = ENUMS["free"]
+        self.lib.set_angular_limits(self.acc, f, 0.0, f, 0.0, f, 0.0)
+        self.lib.set_linear_limits(self.acc, ENUMS["linear_free"], ENUMS["linear_free"], ENUMS["linear_free"], 0.0)
+        self.lib.set_disable_collision(self.acc, True)
+
+
+class _TemplateJoint:
+    """Fallback: edit the joint's settings struct directly (fails in 5.7, kept for others)."""
+
+    def __init__(self, tpl):
+        self.tpl = tpl
+        inst = tpl.get_editor_property("default_instance")
+        self.child = str(inst.get_editor_property("constraint_bone1"))
+        try:
+            self.parent = str(inst.get_editor_property("constraint_bone2"))
+        except Exception:
+            self.parent = None
+
+    def angular(self):
+        cone = self.tpl.get_editor_property("default_instance").get_editor_property(
+            "profile_instance").get_editor_property("cone_limit")
+        return [cone.get_editor_property("swing1_limit_degrees"), cone.get_editor_property("swing2_limit_degrees")]
+
+    def _edit(self, motion, limits):
+        inst = self.tpl.get_editor_property("default_instance")
+        prof = inst.get_editor_property("profile_instance")
+        cone = prof.get_editor_property("cone_limit")
+        twist = prof.get_editor_property("twist_limit")
+        for axis, lim in (("swing1", limits[0]), ("swing2", limits[1])):
             cone.set_editor_property(f"{axis}_motion", motion)
-        if lim:
-            cur = cone.get_editor_property(f"{axis}_limit_degrees")
-            cone.set_editor_property(f"{axis}_limit_degrees", float(min(cur, lim) if cur > 0 else lim))
-    if motion is not None:
+            if lim:
+                cur = cone.get_editor_property(f"{axis}_limit_degrees")
+                cone.set_editor_property(f"{axis}_limit_degrees", float(min(cur, lim) if cur > 0 else lim))
         twist.set_editor_property("twist_motion", motion)
-    if limits[2]:
-        cur = twist.get_editor_property("twist_limit_degrees")
-        twist.set_editor_property("twist_limit_degrees", float(min(cur, limits[2]) if cur > 0 else limits[2]))
-    prof.set_editor_property("cone_limit", cone)
-    prof.set_editor_property("twist_limit", twist)
-    inst.set_editor_property("profile_instance", prof)
-    joint.set_editor_property("default_instance", inst)
+        if limits[2]:
+            cur = twist.get_editor_property("twist_limit_degrees")
+            twist.set_editor_property("twist_limit_degrees", float(min(cur, limits[2]) if cur > 0 else limits[2]))
+        prof.set_editor_property("cone_limit", cone)
+        prof.set_editor_property("twist_limit", twist)
+        inst.set_editor_property("profile_instance", prof)
+        self.tpl.set_editor_property("default_instance", inst)
+
+    def limit(self, limits):
+        self._edit(ENUMS["limited"], limits)
+
+    def free(self):
+        raise RuntimeError("cannot free a joint through its template")
+
+
+def _joints(pa, diag, errors):
+    """The asset's joints as editable handles, each knowing its parent and child body."""
+    lib = getattr(unreal, "ConstraintInstanceBlueprintLibrary", None)
+    get = getattr(pa, "get_constraints", None)
+    diag["joint_api"] = {"library": lib is not None, "get_constraints": get is not None}
+    if lib is not None and get is not None:
+        try:
+            try:
+                accessors = get(False)
+            except TypeError:
+                accessors = get()
+            if isinstance(accessors, tuple):  # (return value, out list) in some bindings
+                accessors = next((a for a in accessors if isinstance(a, (list, unreal.Array))), [])
+            handles = []
+            for acc in accessors or []:
+                try:
+                    handles.append(_AccessorJoint(lib, acc))
+                except Exception as exc:
+                    errors.append(f"joint names: {type(exc).__name__}: {exc}")
+            diag["joint_route"] = "blueprint library"
+            if handles:
+                return handles
+        except Exception as exc:
+            diag["joint_api"]["error"] = f"{type(exc).__name__}: {exc}"[:200]
+    diag["joint_route"] = "templates"
+    handles = []
+    for tpl in _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup", diag):
+        try:
+            handles.append(_TemplateJoint(tpl))
+        except Exception as exc:
+            errors.append(f"joint template: {type(exc).__name__}: {exc}")
+    return handles
+
+
+def _error_summary(errors):
+    """'12x bone collision: msg' lines: one per kind of failure, so none hides another."""
+    kinds = {}
+    for e in errors:
+        bone, _, rest = e.partition(" ")
+        key = rest if rest else e
+        k = kinds.setdefault(key, [0, bone])
+        k[0] += 1
+    return [f"{n}x {key} (e.g. {bone})"[:300] for key, (n, bone) in list(kinds.items())[:15]]
 
 
 def tame_ragdoll(name, pa, info):
     """When hit, the Combat characters go half-limp for a moment (Epic's hit reaction blends
     in ragdoll); when killed, fully limp. The generated physics assets had a body on every
     cloth strip, tail and gun bone with loose joints, so a hit set everything wobbling like
-    jelly. Now only the main skeleton swings, with real masses, joint limits and damping."""
-    out = info.setdefault("ragdoll", {"simulated": [], "riding": [], "kinematic": [], "errors": []})
-    errors = out["errors"]
+    jelly. Now only the main skeleton swings, with real masses, joint limits and damping;
+    the loose parts' bodies stand still (unjointed, no collision) while their bones ride along."""
+    out = info.setdefault("ragdoll", {})
+    out.update({"simulated": [], "bridging": [], "riding": [], "kinematic": []})
+    errors = []
     diag = out.setdefault("lookup", {})
     bodies = _subobjects(pa, "SkeletalBodySetup", "skeletal_body_setups", diag)
-    joints = _subobjects(pa, "PhysicsConstraintTemplate", "constraint_setup", diag)
-    out["found"] = {"bodies": len(bodies), "joints": len(joints)}
     ENUMS.update({
         "default": _enum("PhysicsType", "PHYS_TYPE_DEFAULT", "DEFAULT", diag=diag),
         "kinematic": _enum("PhysicsType", "PHYS_TYPE_KINEMATIC", "KINEMATIC"),
         "limited": _enum("AngularConstraintMotion", "ACM_LIMITED", "LIMITED", diag=diag),
-        "locked": _enum("AngularConstraintMotion", "ACM_LOCKED", "LOCKED"),
+        "free": _enum("AngularConstraintMotion", "ACM_FREE", "FREE"),
+        "linear_free": _enum("LinearConstraintMotion", "LCM_FREE", "FREE", diag=diag),
         "no_collision": _enum("BodyCollisionResponse", "BODY_COLLISION_DISABLED", "DISABLED", diag=diag),
     })
     missing = [k for k, v in ENUMS.items() if v is None]
     if missing:
-        errors.append(f"enum values not found: {missing}")
-    path_of = _bone_paths(name)
-    role = {}
+        errors.append(f"enums: not found {missing}")
+    joints = _joints(pa, diag, errors)
+    out["found"] = {"bodies": len(bodies), "joints": len(joints)}
+
+    by_bone = {}
     for body in bodies:
         try:
-            bone = str(body.get_editor_property("bone_name"))
+            by_bone[str(body.get_editor_property("bone_name"))] = body
         except Exception as exc:
-            errors.append(f"bone_name: {exc}")
-            continue
-        if bone in RAGDOLL_BONES:
-            role[bone] = "simulated"
-            _set_body(body, ENUMS["default"], RAGDOLL_BONES[bone], BODY_DAMPING, True, errors, bone)
-        else:
-            path = path_of(bone)
-            hangs = any(b in RAGDOLL_BONES for b in path[1:]) if path else not any(
-                w in bone.lower() for w in ("weapon", "gun", "ik_", "attach", "root"))
-            role[bone] = "riding" if hangs else "kinematic"
-            _set_body(body, ENUMS["default"] if hangs else ENUMS["kinematic"],
-                      PASSENGER_MASS, {"linear_damping": 2.0, "angular_damping": 10.0}, False, errors, bone)
-        out[role[bone]].append(bone)
-    done = 0
-    for joint in joints:
+            errors.append(f"body bone_name: {exc}")
+    named = [j for j in joints if j.child in by_bone]
+    if joints and len(named) < 0.8 * len(joints):
+        # names that do not match the bodies would free the main skeleton's joints too
+        errors.append(f"joints: only {len(named)} of {len(joints)} name a body, e.g. "
+                      f"{joints[0].child}/{joints[0].parent}; joints left alone")
+        joints = []
+    # the joint tree: a body between two ragdoll bones (Khaimera's upper arm is only a
+    # twist bone) carries the ragdoll too, or the forearm would come off when she dies
+    parent_of = {j.child: j.parent for j in joints}
+    core = {b for b in by_bone if b in RAGDOLL_BONES}
+    bridge = set()
+    for b in core:
+        p, seen = parent_of.get(b), set()
+        chain = []
+        while p and p not in core and p not in seen:
+            seen.add(p)
+            chain.append(p)
+            p = parent_of.get(p)
+        if p in core:
+            bridge.update(chain)
+
+    # joints first: a loose part may only stop simulating once its joint is free,
+    # otherwise its still body would hold the limb it hangs from in the air
+    freed, done = set(), 0
+    for j in joints:
         try:
-            bone = str(joint.get_editor_property("default_instance").get_editor_property("constraint_bone1"))
-            if role.get(bone, "simulated") == "simulated":
-                _set_joint(joint, ENUMS["limited"], _joint_limits(bone), errors)
-            else:  # welded to its parent: moves only with it
-                _set_joint(joint, ENUMS["locked"], (0, 0, 0), errors)
+            if j.child in core or j.child in bridge:
+                j.limit(_joint_limits(j.child) if j.child in core else JOINT_LIMIT_DEFAULT)
+            else:
+                j.free()
+                freed.add(j.child)
             done += 1
         except Exception as exc:
-            errors.append(f"joint: {type(exc).__name__}: {exc}")
+            errors.append(f"{j.child} joint: {type(exc).__name__}: {exc}")
     out["joints_set"] = done
-    del errors[12:]
+
+    path_of = _bone_paths(name)
+    loose_damping = {"linear_damping": 2.0, "angular_damping": 10.0}
+    for bone, body in by_bone.items():
+        if bone in core:
+            role = "simulated"
+            _set_body(body, ENUMS["default"], RAGDOLL_BONES[bone], BODY_DAMPING, True, errors, bone)
+        elif bone in bridge:
+            role = "bridging"
+            _set_body(body, ENUMS["default"], 1.0, BODY_DAMPING, False, errors, bone)
+        elif bone in freed or (joints and bone not in parent_of):
+            role = "kinematic"
+            _set_body(body, ENUMS["kinematic"], PASSENGER_MASS, loose_damping, False, errors, bone)
+        else:
+            # joint could not be freed: keep it simulating, light and without collision
+            path = path_of(bone)
+            hangs = any(b in RAGDOLL_BONES for b in path[1:]) if path else True
+            role = "riding" if hangs else "kinematic"
+            _set_body(body, ENUMS["default"] if hangs else ENUMS["kinematic"],
+                      PASSENGER_MASS, loose_damping, False, errors, bone)
+        out[role].append(bone)
+
+    # read a few settings back, so the report shows what actually stuck
+    check = {}
+    for j in joints:
+        kind = "core" if j.child in core else "freed" if j.child in freed else None
+        if kind and kind not in check:
+            try:
+                check[kind] = [j.child] + [str(v) for v in j.angular()]
+            except Exception as exc:
+                check[kind] = f"{j.child}: {type(exc).__name__}: {exc}"[:200]
+    for role in ("simulated", "kinematic"):
+        if out[role]:
+            b = by_bone[out[role][0]]
+            try:
+                check[role] = [out[role][0], str(b.get_editor_property("physics_type"))]
+            except Exception as exc:
+                check[role] = f"{type(exc).__name__}: {exc}"[:200]
+    out["check"] = check
+    out["errors"] = _error_summary(errors)
     if bodies or joints:
         H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
     return out
@@ -967,7 +1127,7 @@ def ragdoll_physics(name, mesh, info):
         pa = unreal.load_asset(path)
         try:
             tame_ragdoll(name, pa, info)
-            info["physics"] = "per-bone ragdoll, loose parts locked on"
+            info["physics"] = "per-bone ragdoll, loose parts ride along"
         except Exception as exc:
             info["physics"] = f"tuning failed: {type(exc).__name__}: {exc}"
         return pa

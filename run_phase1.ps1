@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11s (ragdoll settings actually applied this time)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11t (joints fixed, play recorder)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -398,8 +398,11 @@ if ($r.PSObject.Properties["combat"]) {
             Say "  $($c.Name): Paragon body, $moves$pace" "Green"
             if (-not $c.Value.foot_ik.off) { Say "    (foot adjuster could not be switched off for $($c.Name); legs may still bend)" "Yellow" }
             $rd = $c.Value.ragdoll
-            if ($rd -and $rd.simulated.Count -gt 0) { Say "    ragdoll: $($rd.simulated.Count) body parts swing, $($rd.riding.Count) loose parts locked on" "Green" }
-            else { Say "    (ragdoll for $($c.Name) could not be adjusted; hits may still make it wobble)" "Yellow" }
+            if ($rd -and $rd.simulated.Count -gt 0 -and $rd.joints_set -gt 0) {
+                Say "    ragdoll: $($rd.simulated.Count) body parts swing, $($rd.kinematic.Count) loose parts ride along, $($rd.joints_set) of $($rd.found.joints) joints set" "Green"
+            } elseif ($rd -and $rd.simulated.Count -gt 0) {
+                Say "    ragdoll: body parts set, but the joints could not be changed; hits may still make loose parts flap" "Yellow"
+            } else { Say "    (ragdoll for $($c.Name) could not be adjusted; hits may still make it wobble)" "Yellow" }
         }
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }
@@ -418,4 +421,5 @@ Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine roo
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
 Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
+Say "While you play, a recorder writes reports\phase1\play_trace.json - send it to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null
