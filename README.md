@@ -61,6 +61,7 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 | `level/flooded_deck.json` | **The level**: text grid map, zones, doors, stairs, props |
 | `level/layout.py` | Turns the grid map into exact placements (`placements.json`) |
 | `unreal/hh_setup.py` | Imports the kit, creates materials, builds `L_FloodedDeck` |
+| `unreal/hh_combat.py` | Phase 2: retargets Epic's Combat variant onto the Paragon heroes, places the enemies and a nav mesh |
 | `unreal/hh_screenshots.py` | Captures four review shots inside Unreal |
 | `tools/prepare_project.py` | Prepares the launcher-made project: plugins, startup map, `init_unreal.py` build hook |
 | `export/ship_kit/` | Generated FBX files (committed, so Unreal works even without Blender) |
@@ -69,8 +70,12 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 
 ## Phases
 
-1. **Greybox level** (now): kit, layout, lighting and atmosphere, walkable with the template character → `CODEX_PHASE1.md`
-2. **Combat core**: dodge with i-frames, 3-hit melee combo, harpoon pistol, scarce health/ammo/power
+1. **Greybox level** (done): kit, layout, lighting and atmosphere, walkable with the template character → `CODEX_PHASE1.md`
+2. **Combat core** (now): Epic's Third Person Combat variant (combo and charged attacks, AI enemies, health
+   bars) with Paragon heroes retargeted onto it: Revenant as the player, Khaimera, Grux and Sevarog as enemies
+   (`level/flooded_deck.json` → `enemies`). Needs the Fab Paragon packs and a helper project made with
+   Third Person + Variants: Combat; `RUN_PHASE1.bat` copies both into HollowHull. Next: realistic kills
+   (hit-stop, directional hit reactions, ragdoll impulse), harpoon pistol
 3. **Enemies and infection**: one creature type with AI, plus the infection meter and its screen effects
 4. **Art pass**: Megascans/Fab materials, fal-generated textures and concept art, hero meshes, decals
 5. **Shifting corridor, audio, polish**

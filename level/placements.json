@@ -3764,11 +3764,45 @@
   }
  ],
  "player_start": {
-  "x": 360,
-  "y": 60,
-  "z": 100,
+  "x": 400,
+  "y": 0,
+  "z": 170,
   "yaw": 0
  },
+ "enemies": [
+  {
+   "type": "Khaimera",
+   "x": 2800,
+   "y": 400,
+   "z": 120,
+   "yaw": 180,
+   "zone": "quarters"
+  },
+  {
+   "type": "Khaimera",
+   "x": 3600,
+   "y": 3600,
+   "z": 120,
+   "yaw": 180,
+   "zone": "shifting"
+  },
+  {
+   "type": "Grux",
+   "x": 2000,
+   "y": 2000,
+   "z": 150,
+   "yaw": 270,
+   "zone": "engine"
+  },
+  {
+   "type": "Sevarog",
+   "x": 3200,
+   "y": 5200,
+   "z": 170,
+   "yaw": 270,
+   "zone": "hold"
+  }
+ ],
  "zones": {
   "cabin": {
    "min": [

@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11c (Paragon packs + Combat variant)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11d (Phase 2: Paragon heroes + enemies)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -347,6 +347,8 @@ while ($true) {
 Copy-Item $report (Join-Path $LogDir "setup_report.json") -Force
 $inventory = Join-Path $Project "Saved\HollowHull\inventory.json"
 if (Test-Path $inventory) { Copy-Item $inventory (Join-Path $LogDir "inventory.json") -Force }
+$probe = Join-Path $Project "Saved\HollowHull\combat_probe.json"
+if (Test-Path $probe) { Copy-Item $probe (Join-Path $LogDir "combat_probe.json") -Force }
 $ueLog = Join-Path $Project "Saved\Logs\$ProjectName.log"
 if (Test-Path $ueLog) { Copy-Item $ueLog (Join-Path $LogDir "unreal_log.txt") -Force }
 
@@ -386,8 +388,23 @@ if ($problems.Count -gt 0) {
 } else {
     Say "Everything checks out." "Green"
 }
-Say "`nNow in Unreal: press Play (Alt+P). WASD to move, Space to jump." "Cyan"
+if ($r.PSObject.Properties["combat"]) {
+    Say "`n=== Combat (Phase 2) ==="
+    foreach ($c in $r.combat.characters.PSObject.Properties) {
+        if ($c.Name -eq "GameMode") { continue }
+        if ($c.Value.ok) { Say "  $($c.Name): Paragon body" "Green" }
+        else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
+    }
+    $enemies = 0
+    foreach ($k in $r.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $enemies += [int]$k.Value } }
+    Say "  enemies placed: $enemies" "White"
+    $keys = @($r.combat.controls | Where-Object { $_.PSObject.Properties["action"] } |
+        ForEach-Object { "$($_.key) = $($_.action -replace '^IA_', '')" } | Select-Object -Unique)
+    if ($keys.Count -gt 0) { Say "  attack keys: $($keys -join ', ')" "White" }
+}
+Say "`nNow in Unreal: press Play (Alt+P). WASD to move, Space to jump."  "Cyan"
 Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine room (stairs to the mezzanine)" "Cyan"
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
+Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
 Stop-Transcript | Out-Null

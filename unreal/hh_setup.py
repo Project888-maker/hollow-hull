@@ -14,8 +14,10 @@ Work runs in stages on editor ticks once the editor has settled; the report at
 ("stage" says how far it got, "finished" turns true at the end).
 """
 
+import importlib
 import json
 import os
+import sys
 import traceback
 
 import unreal
@@ -44,6 +46,11 @@ VIGNETTE = 0.6
 FILM_GRAIN = 0.2
 CHROMATIC_ABERRATION = 0.4
 EXPOSURE_MIN_EV, EXPOSURE_MAX_EV = -1.0, 4.0
+
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import hh_combat  # noqa: E402  (Phase 2: Paragon characters on the Combat variant)
+importlib.reload(hh_combat)  # pick up edits when re-run in the same editor session
 
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 mel = unreal.MaterialEditingLibrary
@@ -439,7 +446,14 @@ def spawn_atmosphere(data):
 
 
 def set_game_mode():
-    """Use the Third Person template's game mode so Play spawns the template character."""
+    """Use the combat game mode (Phase 2) if it was made, else the Third Person template's."""
+    if ctx.get("game_mode"):
+        cls = eal.load_blueprint_class(ctx["game_mode"])
+        world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+        if cls and set_prop(world.get_world_settings(), "default_game_mode", cls):
+            report["game_mode"] = ctx["game_mode"]
+            log(f"game mode override -> {ctx['game_mode']}")
+            return
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
     candidates = [a for a in registry.get_assets_by_path("/Game", recursive=True)
                   if "GameMode" in str(a.asset_name) and str(a.asset_class_path.asset_name) == "Blueprint"]
@@ -475,7 +489,7 @@ def _report_path():
 
 def write_report():
     with open(_report_path(), "w") as f:
-        json.dump(report, f, indent=2)
+        json.dump(report, f, indent=2, default=str)  # engine values (names, enums) as text
 
 
 def stage_load():
@@ -507,6 +521,13 @@ def stage_lights():
 
 def stage_atmosphere():
     spawn_atmosphere(ctx["data"])
+
+
+def stage_gameplay():
+    if ctx.get("combat"):
+        ctx["game_mode"] = hh_combat.spawn_gameplay(ctx["data"])
+    else:
+        log("Combat variant not in the project; skipping enemies")
 
 
 def stage_save():
@@ -576,9 +597,27 @@ def _write_inventory():
     log(f"inventory: {counts}; content folders: {folders}")
 
 
-STAGES = [("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials), ("import", stage_import),
-          ("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
-          ("atmosphere", stage_atmosphere), ("save", stage_save)]
+def _character_stage(name):
+    def stage():
+        if ctx.get("combat"):
+            hh_combat.build_character(name)
+    return stage
+
+
+def stage_combat_check():
+    ctx["combat"] = asset_exists(hh_combat.ENEMY_BP)
+    if ctx["combat"]:
+        hh_combat.init({k: globals()[k] for k in ("log", "warn", "report", "asset_exists", "load_or_create", "eal",
+                                                   "asset_tools", "_tag", "_count", "_report_path")})
+    else:
+        warn("Combat variant not found in the project (Content/Variant_Combat); no enemies this time")
+
+
+STAGES = ([("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials),
+           ("import", stage_import), ("combat check", stage_combat_check)] +
+          [(f"character {n}", _character_stage(n)) for n in hh_combat.HEROES] +
+          [("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
+           ("atmosphere", stage_atmosphere), ("gameplay", stage_gameplay), ("save", stage_save)])
 state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 

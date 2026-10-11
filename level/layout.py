@@ -178,6 +178,13 @@ def build(spec):
     x, y = g.centre(tuple(ps["cell"]))
     dx, dy, dz = ps.get("offset", (0, 0, 100))
 
+    enemies = []
+    for e in spec.get("enemies", []):
+        ex, ey = g.centre(tuple(e["cell"]))
+        dx, dy, dz = e.get("offset", (0, 0, 120))
+        enemies.append({"type": e["type"], "x": ex + dx, "y": ey + dy, "z": dz, "yaw": e.get("yaw", 0),
+                        "zone": g.zone(tuple(e["cell"]))["id"]})
+
     zones = {}
     for cell in g.cells:
         z = g.zone(cell)
@@ -194,6 +201,7 @@ def build(spec):
         "meshes": meshes,
         "lights": lights,
         "player_start": {"x": x + dx, "y": y + dy, "z": dz, "yaw": ps.get("yaw", 0)},
+        "enemies": enemies,
         "zones": zones,
         "bounds": {"min": [min(xs) - 200, min(ys) - 200, -50],
                    "max": [max(xs) + 200, max(ys) + 200, 2 * g.storey + 50]},
@@ -209,7 +217,7 @@ def main(src, dst):
     counts = {}
     for m in out["meshes"]:
         counts[m["mesh"]] = counts.get(m["mesh"], 0) + 1
-    print(f"[HH] {len(out['meshes'])} meshes, {len(out['lights'])} lights -> {dst}")
+    print(f"[HH] {len(out['meshes'])} meshes, {len(out['lights'])} lights, {len(out['enemies'])} enemies -> {dst}")
     for name, n in sorted(counts.items()):
         print(f"[HH]   {name}: {n}")
 

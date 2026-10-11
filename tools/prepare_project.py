@@ -55,11 +55,9 @@ def enable_plugins(uproject):
     print(f"[HH] plugins enabled: {', '.join(PLUGINS)}")
 
 
-def set_startup_map(project_dir):
-    ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
+def set_ini_keys(ini, section, keys):
+    """Set key=value lines inside [section] of an Unreal ini file, keeping everything else."""
     text = open(ini, encoding="utf-8-sig").read() if os.path.exists(ini) else ""
-    section = "[/Script/EngineSettings.GameMapsSettings]"
-    keys = {"EditorStartupMap": MAP, "GameDefaultMap": MAP}
     if section in text:
         start = text.index(section) + len(section)
         nxt = text.find("\n[", start)
@@ -76,7 +74,20 @@ def set_startup_map(project_dir):
     os.makedirs(os.path.dirname(ini), exist_ok=True)
     with open(ini, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def set_startup_map(project_dir):
+    ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
+    set_ini_keys(ini, "[/Script/EngineSettings.GameMapsSettings]", {"EditorStartupMap": MAP, "GameDefaultMap": MAP})
     print(f"[HH] startup map -> {MAP}")
+
+
+def set_navigation(project_dir):
+    # enemies need a nav mesh; Dynamic builds it at runtime too, so Play works even
+    # if the editor had not finished building it before the level was saved
+    ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
+    set_ini_keys(ini, "[/Script/NavigationSystem.RecastNavMesh]", {"RuntimeGeneration": "Dynamic"})
+    print("[HH] nav mesh -> built at runtime (Dynamic)")
 
 
 def install_startup_hook(project_dir, repo):
@@ -98,6 +109,7 @@ def main(argv):
     project_dir = os.path.dirname(os.path.abspath(args.existing))
     enable_plugins(args.existing)
     set_startup_map(project_dir)
+    set_navigation(project_dir)
     install_startup_hook(project_dir, args.repo)
     print(f"[HH] project ready: {os.path.abspath(args.existing)}")
 
