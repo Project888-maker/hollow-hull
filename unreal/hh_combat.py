@@ -848,8 +848,12 @@ def fit_locomotion_blendspace(name, jog_speed, scale, info):
 
 
 # Epic's hits throw bodies across an open arena; this ship has 4 m corridors. The upward
-# launch sent people tumbling through the air, so it goes almost entirely.
-IMPACT_SCALE = {"launch": 0.1, "impulse": 0.4, "knockback": 0.4}
+# launch sent people tumbling through the air, so it is cut, but not below a small hop:
+# a hit sets the body half limp (physics blend 0.5) and only landing sets it back to 0.
+# At 10% (30-35 cm/s) the character never left the ground at ~14 fps (one frame of gravity
+# outweighs it), never landed, and stayed half limp for the rest of the game.
+# Half (150-175 cm/s) still lifts off at 6 fps and rises only ~15 cm.
+IMPACT_SCALE = {"launch": 0.5, "impulse": 0.4, "knockback": 0.4}
 
 
 def tune_impacts(name, cdo, info):
@@ -1445,10 +1449,14 @@ def configure_blueprint(name, bp, mesh, anims, info, stats=True):
             info["walk_speed"] = {"was": round(cmc.get_editor_property("max_walk_speed")), "now": speed}
             cmc.set_editor_property("max_walk_speed", float(speed))
             if HEROES[name]["parent"] == ENEMY_BP:
-                # monsters steer around each other instead of walking into one another
-                cmc.set_editor_property("use_rvo_avoidance", True)
-                cmc.set_editor_property("avoidance_consideration_radius", 400.0)
-                info["avoidance"] = True
+                # Path following snapped the speed between 0 and full every time the AI
+                # stopped to dodge or re-chased, so the legs flicked between idle and jog;
+                # with acceleration the speed ramps. Avoidance kept nudging the velocity of
+                # monsters standing still; the capsules already keep them apart.
+                for prop, value in (("use_acceleration_for_paths", True), ("max_acceleration", 1000.0),
+                                    ("braking_deceleration_walking", 1200.0), ("use_rvo_avoidance", False)):
+                    cmc.set_editor_property(prop, value)
+                info["path_movement"] = "accelerates, no avoidance"
         except Exception as exc:
             info["walk_speed"] = f"{type(exc).__name__}: {exc}"
     hp_scale = HEROES[name]["hp"]
