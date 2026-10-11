@@ -56,10 +56,13 @@ HEROES = {
     # you (doors are 140 cm wide, so no wider than 132)
     "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380, "min_radius": 46,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
+    # the big two swing from further away (see MELEE_REACH_CM), so their blows reach further
     "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300, "min_radius": 60,
-             "attacks": ["PrimaryAttack_LA", "PrimaryAttack_RA", "PrimaryAttack_LB", "PrimaryAttack_RB"]},
+             "attacks": ["PrimaryAttack_LA", "PrimaryAttack_RA", "PrimaryAttack_LB", "PrimaryAttack_RB"],
+             "props": {"Melee Trace Distance": 110.0}},
     "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True, "speed": 260, "min_radius": 66,
-                "attacks": ["Swing1_Medium", "Swing2_Medium", "Swing3_Medium", "Swing3_Slow"]},
+                "attacks": ["Swing1_Medium", "Swing2_Medium", "Swing3_Medium", "Swing3_Slow"],
+                "props": {"Melee Trace Distance": 120.0}},
 }
 # retargeted mannequin animation (name without the hero suffix) -> the hero's own, first that exists
 NATIVE_ANIMS = {
@@ -1453,10 +1456,24 @@ def configure_blueprint(name, bp, mesh, anims, info, stats=True):
                 # stopped to dodge or re-chased, so the legs flicked between idle and jog;
                 # with acceleration the speed ramps. Avoidance kept nudging the velocity of
                 # monsters standing still; the capsules already keep them apart.
-                for prop, value in (("use_acceleration_for_paths", True), ("max_acceleration", 1000.0),
-                                    ("braking_deceleration_walking", 1200.0), ("use_rvo_avoidance", False)):
-                    cmc.set_editor_property(prop, value)
-                info["path_movement"] = "accelerates, no avoidance"
+                # Each setting on its own: 5.7 moved "use acceleration for paths" into the nav
+                # movement settings, and the old name raised, which skipped the rest.
+                moved = {}
+                for prop, value in (("use_rvo_avoidance", False), ("max_acceleration", 1000.0),
+                                    ("braking_deceleration_walking", 1200.0)):
+                    try:
+                        cmc.set_editor_property(prop, value)
+                        moved[prop] = value
+                    except Exception as exc:
+                        moved[prop] = f"{type(exc).__name__}: {exc}"[:160]
+                try:
+                    nav = cmc.get_editor_property("nav_movement_properties")
+                    nav.set_editor_property("use_acceleration_for_paths", True)
+                    cmc.set_editor_property("nav_movement_properties", nav)
+                    moved["use_acceleration_for_paths"] = True
+                except Exception as exc:
+                    moved["use_acceleration_for_paths"] = f"{type(exc).__name__}: {exc}"[:160]
+                info["path_movement"] = moved
         except Exception as exc:
             info["walk_speed"] = f"{type(exc).__name__}: {exc}"
     hp_scale = HEROES[name]["hp"]
@@ -1502,6 +1519,89 @@ def add_lantern(bp, info):
         info["lantern"] = f"{type(exc).__name__}: {exc}"
 
 
+def _component_templates(bp):
+    """(subsystem, [(handle, template)]) for the components a Blueprint defines or inherits."""
+    sds = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    lib = unreal.SubobjectDataBlueprintFunctionLibrary
+    found = []
+    for h in sds.k2_gather_subobject_data_for_blueprint(bp):
+        obj = lib.get_object(sds.k2_find_subobject_data_from_handle(h))
+        if obj is not None:
+            found.append((h, obj))
+    return sds, found
+
+
+AI_CONTROLLER_BP = COMBAT + "/Blueprints/AI/BP_CombatAIController"
+# Epic's enemy only swings when the player's centre is within TargetMeleeDistance (100 cm)
+# of its own, measured in 3D. Grux and Sevarog are wider and taller than that allows (bodies
+# touching is 115-120 cm away), so they walked up, stopped, and walked up again forever.
+MELEE_REACH_CM = 150.0
+
+
+def widen_melee_reach(info):
+    """Raise the StateTree's TargetMeleeDistance for every enemy. The value lives in the AI
+    controller's StateTree component, as a parameter set that Python can only edit as text."""
+    try:
+        bp = unreal.load_asset(AI_CONTROLLER_BP)
+        sds, comps = _component_templates(bp)
+        comp = next((c for _, c in comps if "StateTree" in c.get_class().get_name()), None)
+        if comp is None:
+            raise RuntimeError("the AI controller has no StateTree component")
+        ref = comp.get_editor_property("state_tree_ref")
+        params = ref.get_editor_property("parameters")
+        text = params.export_text()
+        new, n = re.subn(r"TargetMeleeDistance=[-0-9.]+", f"TargetMeleeDistance={MELEE_REACH_CM:.6f}", text)
+        if not n:
+            raise RuntimeError(f"no TargetMeleeDistance in {text[:200]}")
+        params.import_text(new)
+        ref.set_editor_property("parameters", params)
+        comp.set_editor_property("state_tree_ref", ref)
+        unreal.BlueprintEditorLibrary.compile_blueprint(bp)
+        H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
+        after = comp.get_editor_property("state_tree_ref").get_editor_property("parameters").export_text()
+        got = re.search(r"TargetMeleeDistance=([-0-9.]+)", after)
+        info["melee_reach_cm"] = float(got.group(1)) if got else after[:200]
+    except Exception as exc:
+        info["melee_reach_cm"] = f"{type(exc).__name__}: {exc}"[:300]
+
+
+# Where the player's health bar sits, from the camera: 1 m ahead, left and down, i.e. the
+# lower left of the screen (the view is about 2 m wide and 1.1 m tall at that distance).
+HUD_BAR_FROM_CAMERA = (100.0, -68.0, -44.0)
+
+
+def move_life_bars(info):
+    """Epic draws each character's health bar over its head. The player's moves to a fixed
+    spot on screen: its widget stays in screen space but rides on the camera, so it always
+    projects to the same corner. The enemies' bars are hidden."""
+    out = info.setdefault("life_bars", {})
+    for path, kind in ((PLAYER_BP, "player"), (ENEMY_BP, "enemy")):
+        try:
+            bp = unreal.load_asset(path)
+            sds, comps = _component_templates(bp)
+            bar = next(((h, c) for h, c in comps if isinstance(c, unreal.WidgetComponent)), None)
+            if bar is None:
+                raise RuntimeError("no widget component")
+            if kind == "enemy":
+                bar[1].set_editor_property("visible", False)
+                out[kind] = "hidden"
+            else:
+                cam = next((h for h, c in comps if isinstance(c, unreal.CameraComponent)), None)
+                if cam is None:
+                    raise RuntimeError("no camera component")
+                if not sds.attach_subobject(cam, bar[0]):
+                    raise RuntimeError("could not attach the bar to the camera")
+                w = bar[1]
+                w.set_editor_property("widget_space", unreal.WidgetSpace.SCREEN)
+                w.set_editor_property("relative_location", unreal.Vector(*HUD_BAR_FROM_CAMERA))
+                w.set_editor_property("relative_rotation", unreal.Rotator(0.0, 0.0, 0.0))
+                out[kind] = "lower left of the screen"
+            unreal.BlueprintEditorLibrary.compile_blueprint(bp)
+            H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
+        except Exception as exc:
+            out[kind] = f"{type(exc).__name__}: {exc}"[:300]
+
+
 def dress_epic_character(name, mesh, anims):
     """Epic's player controller respawns its own BP_CombatCharacter after death (the class
     is fixed inside its graph, there is no setting for it), so that character is dressed
@@ -1523,6 +1623,8 @@ def build_character(name):
         if name == PLAYER_HERO:
             probe_combat_blueprints()
             animation_blueprint_rigs(H.report["combat"])
+            widen_melee_reach(H.report["combat"])
+            move_life_bars(H.report["combat"])
         mesh = unreal.load_asset(PARAGON.format(name))
         manny = unreal.load_asset(MANNY)
         if mesh is None or manny is None:
@@ -1728,16 +1830,28 @@ def place_sleeping_enemy(eas, cls, e, zone, info):
                 raise RuntimeError(f"spawner has no '{names[0]}'")
             settings[names[0]] = used is not None
         info["spawner_settings"] = settings
-        # the spawner's pad is arena dressing; in the ship it would stand in the room
-        hidden = 0
-        for comp in spawner.get_components_by_class(unreal.StaticMeshComponent):
+        # The monster appears where the spawner's Spawn Capsule is, which stands a body's
+        # height above the spawner (its pad is meant to be the floor), and that capsule
+        # blocks: Khaimera and Grux appeared inside it ~1.2 m up and hung there for the
+        # whole fight, unable to move. So the capsule goes where the monster should stand
+        # and nothing on the spawner collides.
+        cap = next(iter(spawner.get_components_by_class(unreal.CapsuleComponent)), None)
+        if cap is not None:
+            off = cap.get_world_location() - spawner.get_actor_location()
+            spawner.set_actor_location(loc - off, False, True)
+            info["spawn_point_offset_cm"] = [round(off.x), round(off.y), round(off.z)]
+        hidden = solid = 0
+        for comp in spawner.get_components_by_class(unreal.PrimitiveComponent):
             try:
-                comp.set_editor_property("hidden_in_game", True)
                 comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
-                hidden += 1
+                solid += 1
+                if isinstance(comp, unreal.StaticMeshComponent):  # the pad is arena dressing
+                    comp.set_editor_property("hidden_in_game", True)
+                    hidden += 1
             except Exception:
                 pass
         info["pads_hidden"] = hidden
+        info["collision_off"] = solid
 
         lo, hi = zone["min"], zone["max"]
         centre = unreal.Vector((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)

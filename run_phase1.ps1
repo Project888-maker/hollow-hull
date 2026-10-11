@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11x (hits wear off on landing; enemies ease in and out of moving; enemies wake per room)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11y (enemies stand on the floor; Grux and Sevarog attack; health bar in the screen corner)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -438,6 +438,15 @@ if ($r.PSObject.Properties["combat"]) {
         $asleep = @($r.combat.waking.PSObject.Properties | Where-Object { $_.Value.placed -like "asleep*" }).Count
         if ($asleep -eq $enemies) { Say "  each enemy waits in its room until you walk in" "Green" }
         else { Say "  $asleep of $enemies enemies wait in their rooms; the rest chase you from the start (see combat.waking in setup_report.json)" "Yellow" }
+    }
+    $reach = $r.combat.melee_reach_cm
+    if ($reach -is [double] -or $reach -is [int] -or $reach -is [decimal]) { Say "  enemies swing from up to $reach cm away" "Green" }
+    elseif ($reach) { Say "  could not widen the enemies' reach: $reach" "Yellow" }
+    if ($r.combat.life_bars) {
+        $bars = $r.combat.life_bars
+        if ($bars.player -like "lower left*") { Say "  your health bar is in the lower left of the screen" "Green" }
+        else { Say "  your health bar stays over the hero: $($bars.player)" "Yellow" }
+        if ($bars.enemy -ne "hidden") { Say "  enemy health bars still over their heads: $($bars.enemy)" "Yellow" }
     }
     $keys = @($r.combat.controls | Where-Object { $_.PSObject.Properties["action"] } |
         ForEach-Object { "$($_.key) = $($_.action -replace '^IA_', '')" } | Select-Object -Unique)
