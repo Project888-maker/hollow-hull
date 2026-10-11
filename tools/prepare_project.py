@@ -90,6 +90,14 @@ def set_navigation(project_dir):
     print("[HH] nav mesh -> built at runtime (Dynamic)")
 
 
+def set_texture_budget(project_dir):
+    # the Paragon heroes overflow the default texture pool on integrated graphics
+    # ("TEXTURE STREAMING POOL OVER ... BUDGET", blurry textures)
+    ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
+    set_ini_keys(ini, "[SystemSettings]", {"r.Streaming.PoolSize": "1500"})
+    print("[HH] texture streaming pool -> 1500 MB")
+
+
 def install_startup_hook(project_dir, repo):
     path = os.path.join(project_dir, "Content", "Python", "init_unreal.py")
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -110,6 +118,7 @@ def main(argv):
     enable_plugins(args.existing)
     set_startup_map(project_dir)
     set_navigation(project_dir)
+    set_texture_budget(project_dir)
     install_startup_hook(project_dir, args.repo)
     print(f"[HH] project ready: {os.path.abspath(args.existing)}")
 

@@ -432,6 +432,7 @@ def spawn_atmosphere(data):
         ("scene_fringe_intensity", CHROMATIC_ABERRATION),
         ("auto_exposure_min_brightness", EXPOSURE_MIN_EV),
         ("auto_exposure_max_brightness", EXPOSURE_MAX_EV),
+        ("motion_blur_amount", 0.0),  # the combat camera shakes; blur smeared the whole screen
     ]:
         if set_prop(s, "override_" + prop, True):
             set_prop(s, prop, value)

@@ -276,11 +276,21 @@ def _discard_retarget(name, info):
 
 # --- character Blueprints -------------------------------------------------------
 
+def _parent_path(bp):
+    try:
+        return bp.get_editor_property("parent_class").get_path_name()
+    except Exception:
+        return None
+
+
 def _child_blueprint(asset_name, parent_path):
     path = f"{CHAR_DIR}/{asset_name}"
     if H.asset_exists(path):
         bp = unreal.load_asset(path)
         if bp:
+            want = H.eal.load_blueprint_class(parent_path)
+            if want and _parent_path(bp) != want.get_path_name():
+                unreal.BlueprintEditorLibrary.reparent_blueprint(bp, want)
             return bp
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", H.eal.load_blueprint_class(parent_path))
@@ -352,7 +362,58 @@ def _hero_montage_slot(name):
     return None, None
 
 
-def _native_anim_class(name, anims, info):
+PARAGON_CHAR = "/Game/Paragon{0}/Characters/Heroes/{0}/{0}PlayerCharacter"
+
+
+def _compiled_ok(bp):
+    try:
+        return bp.get_editor_property("status") != unreal.BlueprintStatus.BS_ERROR
+    except Exception:
+        return True  # status not readable in this engine: trust the compile
+
+
+def _quiet_cameras(bp, info):
+    """The Paragon sample characters carry their own camera; ours comes from the Combat class."""
+    try:
+        sds = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+        lib = unreal.SubobjectDataBlueprintFunctionLibrary
+        for h in sds.k2_gather_subobject_data_for_blueprint(bp):
+            obj = lib.get_object(sds.k2_find_subobject_data_from_handle(h))
+            if isinstance(obj, unreal.CameraComponent):
+                obj.set_editor_property("auto_activate", False)
+                info.setdefault("cameras_off", []).append(obj.get_name())
+    except Exception as exc:
+        info["cameras_error"] = f"{type(exc).__name__}: {exc}"
+
+
+def adopt_paragon_character(name, info):
+    """Make the pack's sample character (e.g. GruxPlayerCharacter) a child of the Combat
+    player/enemy. The hero's own anim blueprint only works with that class, so this keeps
+    the Paragon movement while the Combat logic (AI, health, damage) comes from the parent.
+    Undone if it does not compile. Returns the sample character's path, or None."""
+    path = PARAGON_CHAR.format(name)
+    if not H.asset_exists(path):
+        info["adopt"] = f"missing {path}"
+        return None
+    bp = unreal.load_asset(path)
+    want = H.eal.load_blueprint_class(HEROES[name]["parent"])
+    before = bp.get_editor_property("parent_class")
+    info["paragon_parent_before"] = before.get_path_name()
+    if before.get_path_name() != want.get_path_name():
+        unreal.BlueprintEditorLibrary.reparent_blueprint(bp, want)
+        unreal.BlueprintEditorLibrary.compile_blueprint(bp)
+        if not _compiled_ok(bp):
+            unreal.BlueprintEditorLibrary.reparent_blueprint(bp, before)
+            unreal.BlueprintEditorLibrary.compile_blueprint(bp)
+            info["adopt"] = "reparent did not compile; undone"
+            return None
+    _quiet_cameras(bp, info)
+    H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
+    info["adopt"] = "ok"
+    return path
+
+
+def _native_anim_class(name, anims, info, adopted=False):
     """The hero's own Paragon anim blueprint, made to play the Combat montages; None if unusable."""
     path = PARAGON_ABP.format(name)
     if not H.asset_exists(path):
@@ -368,7 +429,7 @@ def _native_anim_class(name, anims, info):
         deps = []
         info["native_deps_error"] = f"{type(exc).__name__}: {exc}"
     tied = [d for d in deps if "PlayerCharacter" in d]
-    if tied:
+    if tied and not adopted:
         info["native_anim"] = f"tied to {tied[0]}"
         return None
     abp = unreal.load_asset(path)
@@ -386,7 +447,7 @@ def _native_anim_class(name, anims, info):
     return abp.generated_class()
 
 
-def configure_blueprint(name, bp, mesh, anims, info):
+def configure_blueprint(name, bp, mesh, anims, info, adopted=False):
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     cdo = unreal.get_default_object(bp.generated_class())
     if mesh is not None and ANIM_BP.split("/")[-1] in anims:
@@ -396,7 +457,7 @@ def configure_blueprint(name, bp, mesh, anims, info):
         anim_class = None
         if HEROES[name].get("anim") == "native":
             try:
-                anim_class = _native_anim_class(name, anims, info)
+                anim_class = _native_anim_class(name, anims, info, adopted)
             except Exception as exc:
                 info["native_anim"] = f"{type(exc).__name__}: {exc}"
         info["anim_source"] = "Paragon" if anim_class else "Combat (retargeted)"
@@ -436,6 +497,35 @@ def configure_blueprint(name, bp, mesh, anims, info):
     H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
 
 
+def add_lantern(bp, info):
+    """A dim warm light that follows the player, so the hero is not a black silhouette
+    against the corridor lamps (and it suits a dark flooded ship)."""
+    try:
+        sds = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+        lib = unreal.SubobjectDataBlueprintFunctionLibrary
+        handles = sds.k2_gather_subobject_data_for_blueprint(bp)
+        light = None
+        for h in handles:
+            obj = lib.get_object(sds.k2_find_subobject_data_from_handle(h))
+            if isinstance(obj, unreal.PointLightComponent):
+                light = obj
+        if light is None:
+            params = unreal.AddNewSubobjectParams(parent_handle=handles[0], new_class=unreal.PointLightComponent,
+                                                  blueprint_context=bp)
+            result = sds.add_new_subobject(params)
+            handle = result[0] if isinstance(result, tuple) else result
+            light = lib.get_object(sds.k2_find_subobject_data_from_handle(handle))
+        light.set_editor_property("relative_location", unreal.Vector(40, 0, 60))
+        light.set_editor_property("intensity_units", unreal.LightUnits.CANDELAS)
+        light.set_editor_property("intensity", 6.0)
+        light.set_editor_property("attenuation_radius", 600.0)
+        light.set_editor_property("light_color", unreal.Color(r=255, g=190, b=130, a=255))
+        light.set_editor_property("cast_shadows", False)  # cheap on integrated graphics
+        info["lantern"] = "ok"
+    except Exception as exc:
+        info["lantern"] = f"{type(exc).__name__}: {exc}"
+
+
 def build_character(name):
     """One hero, never raising: on any failure the plain Combat mannequin is used instead."""
     info = _info(name)
@@ -457,8 +547,21 @@ def build_character(name):
             H.warn(f"{name}: retargeting failed, using the mannequin body (details in setup_report combat)")
             anims = {}
             _discard_retarget(name, info)
-        bp = _child_blueprint(f"BP_HH_{name}", HEROES[name]["parent"])
-        configure_blueprint(name, bp, mesh if anims else None, anims, info)
+        parent = HEROES[name]["parent"]
+        adopted = False
+        if anims and HEROES[name].get("anim") == "native":
+            try:
+                adopted_path = adopt_paragon_character(name, info)
+            except Exception as exc:
+                adopted_path = None
+                info["adopt"] = f"{type(exc).__name__}: {exc}"
+            if adopted_path:
+                parent, adopted = adopted_path, True
+        bp = _child_blueprint(f"BP_HH_{name}", parent)
+        info["parent"] = parent
+        if name == PLAYER_HERO:
+            add_lantern(bp, info)  # before configure_blueprint, which compiles and saves
+        configure_blueprint(name, bp, mesh if anims else None, anims, info, adopted)
         built[name] = bp.generated_class()
         info["blueprint"] = f"{CHAR_DIR}/BP_HH_{name}"
         info["ok"] = bool(anims)
