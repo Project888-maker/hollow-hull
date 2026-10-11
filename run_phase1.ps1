@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11b (moves Paragon packs, lists content folders)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11c (Paragon packs + Combat variant)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -272,6 +272,25 @@ foreach ($dir in (Find-OtherProjectDirs $Project $Project)) {
         }
     }
 }
+# Epic's Combat variant comes from a separate project made with Third Person + Variants: Combat.
+# Copy its Variant_Combat folder, plus any template files it uses that HollowHull lacks
+# (/XC /XN /XO = only files missing here; nothing in HollowHull is overwritten).
+$combatDir = Find-OtherProjectDirs $Project $Project | Where-Object { Test-Path (Join-Path $_ "Content\Variant_Combat") } | Select-Object -First 1
+if ($combatDir) {
+    Say "Copying missing Combat variant files from $combatDir..." "Yellow"
+    foreach ($folder in @("Variant_Combat", "Characters", "Input", "LevelPrototyping")) {
+        $src = Join-Path $combatDir "Content\$folder"
+        if (-not (Test-Path $src)) { continue }
+        $code = Invoke-Native "robocopy" @($src, (Join-Path $myContent $folder), "/E", "/XC", "/XN", "/XO", "/NFL", "/NDL", "/NJH", "/NJS", "/NP")
+        if ($code -ge 8) { Fail "Copying $folder from the Combat project failed (robocopy exit code $code)" }
+    }
+    # its project settings, so Claude can see if the variant needs any (collision channels, tags)
+    $cfgOut = Join-Path $LogDir "combat_config"
+    New-Item -ItemType Directory -Force $cfgOut | Out-Null
+    Copy-Item (Join-Path $combatDir "Config\*.ini") $cfgOut -Force -ErrorAction SilentlyContinue
+}
+if (Test-Path (Join-Path $myContent "Variant_Combat")) { Say "Combat variant: in the project" "Green" }
+else { Say "Combat variant: not found yet (make a Third Person project with Variants: Combat in C:\Projects)" "Yellow" }
 $myPacks = @(Get-ChildItem $myContent -Directory -Filter "Paragon*" -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
 if ($myPacks.Count -gt 0) { Say "Fab characters in the project: $($myPacks -join ', ')" "Green" }
 else { Say "No Paragon characters found in HollowHull or your other projects yet." "Yellow" }

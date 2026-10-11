@@ -522,10 +522,11 @@ def stage_save():
         warn(f"could not move the editor camera: {exc}")
 
 
-INVENTORY_CLASSES = {"Blueprint", "World", "SkeletalMesh", "AnimBlueprint", "StateTree", "BehaviorTree",
-                     "InputAction", "InputMappingContext", "AnimMontage", "PhysicsAsset", "IKRigDefinition",
-                     "IKRetargeter", "WidgetBlueprint", "NiagaraSystem", "SoundCue",
-                     "Material", "MaterialInstanceConstant", "Texture2D"}
+INVENTORY_CLASSES = {"Blueprint", "World", "SkeletalMesh", "Skeleton", "AnimBlueprint", "StateTree", "BehaviorTree",
+                     "BlackboardData", "InputAction", "InputMappingContext", "AnimMontage", "AnimSequence",
+                     "BlendSpace", "BlendSpace1D", "PhysicsAsset", "IKRigDefinition", "IKRetargeter",
+                     "WidgetBlueprint", "NiagaraSystem", "ParticleSystem", "SoundCue", "UserDefinedEnum",
+                     "UserDefinedStruct", "DataTable", "CurveFloat"}
 
 
 def stage_inventory():
@@ -550,6 +551,11 @@ def _write_inventory():
             parent = a.get_tag_value("ParentClass")
             if parent:
                 entry["parent"] = str(parent).split(".")[-1].rstrip("'")
+        if cls in ("SkeletalMesh", "AnimSequence", "AnimMontage", "BlendSpace", "BlendSpace1D", "AnimBlueprint"):
+            # which skeleton an animation plays on (Paragon heroes each have their own)
+            skel = a.get_tag_value("Skeleton") or a.get_tag_value("TargetSkeleton")
+            if skel:
+                entry["skeleton"] = str(skel).split(".")[-1].rstrip("'")
         items.append(entry)
     items.sort(key=lambda e: (e["class"], e["path"]))
     with open(os.path.join(os.path.dirname(_report_path()), "inventory.json"), "w") as f:
