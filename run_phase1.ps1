@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11x (hits wear off on landing; enemies ease in and out of moving)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11x (hits wear off on landing; enemies ease in and out of moving; enemies wake per room)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -434,6 +434,11 @@ if ($r.PSObject.Properties["combat"]) {
     $enemies = 0
     foreach ($k in $r.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $enemies += [int]$k.Value } }
     Say "  enemies placed: $enemies" "White"
+    if ($r.combat.waking) {
+        $asleep = @($r.combat.waking.PSObject.Properties | Where-Object { $_.Value.placed -like "asleep*" }).Count
+        if ($asleep -eq $enemies) { Say "  each enemy waits in its room until you walk in" "Green" }
+        else { Say "  $asleep of $enemies enemies wait in their rooms; the rest chase you from the start (see combat.waking in setup_report.json)" "Yellow" }
+    }
     $keys = @($r.combat.controls | Where-Object { $_.PSObject.Properties["action"] } |
         ForEach-Object { "$($_.key) = $($_.action -replace '^IA_', '')" } | Select-Object -Unique)
     if ($keys.Count -gt 0) { Say "  attack keys: $($keys -join ', ')" "White" }

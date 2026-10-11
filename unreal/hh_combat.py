@@ -279,7 +279,7 @@ def dump_logic():
 
 # the files that decide how enemies fight, in reading order
 LOGIC_TEXT = ("ST_CombatEnemy", "StateTreeTask_", "StateTreeCondition_", "EnvQuery", "BP_CombatAIController",
-              "BP_CombatEnemy", "BP_CombatCharacter")
+              "BP_CombatEnemy", "BP_CombatCharacter", "BP_Combat_EnemySpawner", "BP_Combat_ActivationVolume")
 _NOISE = [re.compile(p) for p in (
     r"PinId=[0-9A-F]{32},", r"PersistentGuid=[0-9A-F]{32},", r"NodeGuid=[0-9A-F]{32}",
     r"bHidden=False,", r"bNotConnectable=False,", r"bDefaultValueIsReadOnly=False,",
@@ -1647,21 +1647,130 @@ def spawn_gameplay(data):
             H.warn("nav mesh volume came out too small; enemies may not move")
         H._count("NavMeshBoundsVolume")
     enemy_fallback = None
+    waking = H.report["combat"].setdefault("waking", {})
     for e in data.get("enemies", []):
         cls = built.get(e["type"])
         if cls is None:
             enemy_fallback = enemy_fallback or H.eal.load_blueprint_class(ENEMY_BP)
             cls = enemy_fallback
+        where = f"{e['type']}_{e['zone']}"
+        info = waking.setdefault(where, {})
+        try:
+            asleep = place_sleeping_enemy(eas, cls, e, data.get("zones", {}).get(e["zone"]), info)
+        except Exception as exc:
+            info["error"] = f"{type(exc).__name__}: {exc}"[:300]
+            asleep = False
+        if asleep:
+            H._count(f"Enemy_{e['type']}")
+            continue
         actor = eas.spawn_actor_from_class(cls, unreal.Vector(e["x"], e["y"], e["z"]),
                                            unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(e["yaw"])))
         if actor is None:
             H.warn(f"could not place enemy {e['type']} in {e['zone']}")
             continue
+        info["placed"] = "awake from the start"
         H._tag(actor, "enemies")
-        actor.set_actor_label(f"Enemy_{e['type']}_{e['zone']}")
+        actor.set_actor_label(f"Enemy_{where}")
         H._count(f"Enemy_{e['type']}")
     build_navigation(nav)
     return build_game_mode()
+
+
+SPAWNER_BP = COMBAT + "/Blueprints/AI/BP_Combat_EnemySpawner"
+ACTIVATION_BP = COMBAT + "/Blueprints/Interactables/BP_Combat_ActivationVolume"
+# the wake-up box reaches this far past the room's walls, so the monster appears while you
+# are still in the doorway instead of once you are already inside
+WAKE_MARGIN = 150.0
+
+
+def _set_first(obj, names, value):
+    """Set the first of these property names the object has; returns the one used."""
+    for n in names:
+        try:
+            obj.set_editor_property(n, value)
+            return n
+        except Exception:
+            continue
+    return None
+
+
+def place_sleeping_enemy(eas, cls, e, zone, info):
+    """Every enemy used to start chasing the player the moment Play began, from anywhere in
+    the ship, so they piled up in the first room (the second Khaimera ran 44 m and stood next
+    to the first). Now each one waits: Epic's enemy spawner holds it, and Epic's activation
+    volume over its room wakes the spawner when the player walks in. Returns False (after
+    removing anything half made) when that pair is missing or will not take the settings,
+    and the enemy is then placed awake as before."""
+    if not zone:
+        info["skipped"] = "no room bounds for this enemy"
+        return False
+    if not (H.asset_exists(SPAWNER_BP) and H.asset_exists(ACTIVATION_BP)):
+        info["skipped"] = "Combat variant has no enemy spawner or activation volume"
+        return False
+    made = []
+    try:
+        loc = unreal.Vector(e["x"], e["y"], e["z"])
+        rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(e["yaw"]))
+        spawner = eas.spawn_actor_from_class(H.eal.load_blueprint_class(SPAWNER_BP), loc, rot)
+        if spawner is None:
+            raise RuntimeError("could not place the spawner")
+        made.append(spawner)
+        # one monster, only when woken, without the arena's start-up wait
+        settings = {}
+        for names, value, needed in (
+                (["Enemy Class", "EnemyClass"], cls, True),
+                (["Spawn Count", "SpawnCount"], 1, True),
+                (["Should Spawn Enemies Immediately", "ShouldSpawnEnemiesImmediately"], False, True),
+                (["Initial Spawn Delay", "InitialSpawnDelay"], 0.0, False),
+                (["Activation Delay", "ActivationDelay"], 0.2, False)):
+            used = _set_first(spawner, names, value)
+            if used is None and needed:
+                raise RuntimeError(f"spawner has no '{names[0]}'")
+            settings[names[0]] = used is not None
+        info["spawner_settings"] = settings
+        # the spawner's pad is arena dressing; in the ship it would stand in the room
+        hidden = 0
+        for comp in spawner.get_components_by_class(unreal.StaticMeshComponent):
+            try:
+                comp.set_editor_property("hidden_in_game", True)
+                comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+                hidden += 1
+            except Exception:
+                pass
+        info["pads_hidden"] = hidden
+
+        lo, hi = zone["min"], zone["max"]
+        centre = unreal.Vector((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
+        volume = eas.spawn_actor_from_class(H.eal.load_blueprint_class(ACTIVATION_BP), centre,
+                                            unreal.Rotator(0.0, 0.0, 0.0))
+        if volume is None:
+            raise RuntimeError("could not place the activation volume")
+        made.append(volume)
+        box = volume.get_component_by_class(unreal.BoxComponent)
+        if box is None:
+            raise RuntimeError("activation volume has no box")
+        ext = box.get_unscaled_box_extent()
+        half = [(hi[i] - lo[i]) / 2 + WAKE_MARGIN for i in range(3)]
+        volume.set_actor_scale3d(unreal.Vector(half[0] / max(ext.x, 1.0), half[1] / max(ext.y, 1.0),
+                                               half[2] / max(ext.z, 1.0)))
+        if _set_first(volume, ["Actors To Activate", "Actors to Activate", "ActorsToActivate"],
+                      [spawner]) is None:
+            raise RuntimeError("activation volume has no 'Actors To Activate'")
+        info["wake_box_cm"] = [round(2 * h) for h in half]
+    except Exception as exc:
+        info["error"] = f"{type(exc).__name__}: {exc}"[:300]
+        for a in made:
+            try:
+                eas.destroy_actor(a)
+            except Exception:
+                pass
+        return False
+    where = f"{e['type']}_{e['zone']}"
+    for actor, label in ((spawner, f"Enemy_{where}"), (volume, f"Wake_{where}")):
+        H._tag(actor, "enemies")
+        actor.set_actor_label(label)
+    info["placed"] = "asleep until you enter the room"
+    return True
 
 
 def build_navigation(nav):
