@@ -38,15 +38,34 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # role, health multiplier (applied if the Combat Blueprint exposes a health value)
 # head_cm: height of the head bone after scaling (a 1.8 m man is about 165 cm);
 # Paragon heroes are authored oversized, so each is scaled to this height
-# anim: "native" = the hero's own Paragon anim blueprint (its own walk/run/idle), with the
-# Combat attack montages retargeted onto it; "combat" = Epic's Combat anim blueprint retargeted
+# Each hero keeps the Combat anim blueprint and attack montages (retargeted to its
+# skeleton: they carry the AI, combo and damage logic), but the mannequin animations
+# inside them are swapped for the hero's own Paragon ones (see NATIVE_ANIMS).
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165, "anim": "native"},
-    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "anim": "native"},
-    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "anim": "native"},
-    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "anim": "native"},
+    "Revenant": {"parent": PLAYER_BP, "hp": 1.0, "head_cm": 165},
+    "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165,
+                 "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
+    "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205,
+             "attacks": ["PrimaryAttack_LA", "PrimaryAttack_RA", "PrimaryAttack_LB", "PrimaryAttack_RB"]},
+    "Sevarog": {"parent": ENEMY_BP, "hp": 4.0, "head_cm": 240, "walk": True,
+                "attacks": ["Swing1_Medium", "Swing2_Medium", "Swing3_Medium", "Swing3_Slow"]},
 }
-PARAGON_ABP = "/Game/Paragon{0}/Characters/Heroes/{0}/{0}_AnimBlueprint"
+# retargeted mannequin animation (name without the hero suffix) -> the hero's own, first that exists
+NATIVE_ANIMS = {
+    "MM_Idle": ["Idle"],
+    "MF_Unarmed_Jog_Fwd": ["Jog_Fwd"], "MF_Unarmed_Jog_Fwd_Left": ["Jog_Fwd"], "MF_Unarmed_Jog_Fwd_Right": ["Jog_Fwd"],
+    "MF_Unarmed_Jog_Bwd": ["Jog_Bwd"], "MF_Unarmed_Jog_Bwd_Left": ["Jog_Bwd"], "MF_Unarmed_Jog_Bwd_Right": ["Jog_Bwd"],
+    "MF_Unarmed_Jog_Left": ["Jog_Left", "Jog_Lft"], "MF_Unarmed_Jog_Right": ["Jog_Right", "Jog_Rgt"],
+    "MF_Unarmed_Walk_Fwd": ["Walk_Fwd", "Jog_Fwd"], "MF_Unarmed_Walk_Fwd_Left": ["Walk_Fwd", "Jog_Fwd"],
+    "MF_Unarmed_Walk_Fwd_Right": ["Walk_Fwd", "Jog_Fwd"], "MF_Unarmed_Walk_Bwd": ["Walk_Bwd", "Jog_Bwd"],
+    "MF_Unarmed_Walk_Bwd_Left": ["Walk_Bwd", "Jog_Bwd"], "MF_Unarmed_Walk_Bwd_Right": ["Walk_Bwd", "Jog_Bwd"],
+    "MF_Unarmed_Walk_Left": ["Walk_Left", "Jog_Left", "Jog_Lft"],
+    "MF_Unarmed_Walk_Right": ["Walk_Right", "Jog_Right", "Jog_Rgt"],
+    "MM_Jump": ["Jump_Start"],
+    "MM_Fall_Loop": ["Jump_Fall_Loop", "Jump_Loop", "Jump_Apex", "JumpApex"],
+    "MM_Land": ["Jump_Land", "Jump_Recovery"],
+}
+ATTACK_SLOTS = ["MM_Attack_01", "MM_Attack_02", "MM_Attack_03", "MM_ChargedAttack"]
 PLAYER_HERO = "Revenant"
 
 # Likely variable names on the Combat Blueprints (they mirror Epic's C++ version).
@@ -276,21 +295,11 @@ def _discard_retarget(name, info):
 
 # --- character Blueprints -------------------------------------------------------
 
-def _parent_path(bp):
-    try:
-        return bp.get_editor_property("parent_class").get_path_name()
-    except Exception:
-        return None
-
-
 def _child_blueprint(asset_name, parent_path):
     path = f"{CHAR_DIR}/{asset_name}"
     if H.asset_exists(path):
         bp = unreal.load_asset(path)
         if bp:
-            want = H.eal.load_blueprint_class(parent_path)
-            if want and _parent_path(bp) != want.get_path_name():
-                unreal.BlueprintEditorLibrary.reparent_blueprint(bp, want)
             return bp
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", H.eal.load_blueprint_class(parent_path))
@@ -336,132 +345,58 @@ def _fit_body(name, mesh, info):
     return scale, radius, half, -half
 
 
-def _montage_slots(montage):
-    try:
-        return [str(t.get_editor_property("slot_name")) for t in montage.get_editor_property("slot_anim_tracks")]
-    except Exception:
-        return []
-
-
-def _set_montage_slot(montage, slot):
-    tracks = montage.get_editor_property("slot_anim_tracks")
-    for t in tracks:
-        t.set_editor_property("slot_name", unreal.Name(slot))
-    montage.set_editor_property("slot_anim_tracks", tracks)
-    H.eal.save_loaded_asset(montage, only_if_is_dirty=False)
-
-
-def _hero_montage_slot(name):
-    """Slot the hero's own attack montages play in (its anim blueprint has a node for it)."""
+def _native_assets(name):
+    """{asset name: package path} of the hero's own animation sequences."""
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    out = {}
     for a in registry.get_assets_by_path(f"/Game/Paragon{name}", recursive=True):
-        if str(a.asset_class_path.asset_name) == "AnimMontage" and "LevelStart" not in str(a.asset_name):
-            slots = _montage_slots(unreal.load_asset(str(a.package_name)))
-            if slots:
-                return slots[0], str(a.asset_name)
-    return None, None
+        if str(a.asset_class_path.asset_name) == "AnimSequence":
+            out.setdefault(str(a.asset_name), str(a.package_name))
+    return out
 
 
-PARAGON_CHAR = "/Game/Paragon{0}/Characters/Heroes/{0}/{0}PlayerCharacter"
+def use_native_animations(name, info):
+    """Swap the retargeted mannequin animations for the hero's own: every reference to,
+    say, MM_Idle_Grux (in the anim blueprint, blend space and montages) is pointed at
+    Grux's Idle and the copy is deleted. Both are on the hero's skeleton."""
+    native = _native_assets(name)
+    plan = dict((k, v) for k, v in NATIVE_ANIMS.items())
+    if not HEROES[name].get("walk"):  # walk = jog for heroes without walk cycles
+        plan = {k: [c for c in v if not c.startswith("Walk_")] or v for k, v in plan.items()}
+    for slot, anim in zip(ATTACK_SLOTS, HEROES[name].get("attacks", [])):
+        plan[slot] = [anim]
+    swapped, missing = {}, []
+    groups = {}
+    for base, candidates in plan.items():
+        copy = f"/Game/{base}_{name}"
+        if not H.asset_exists(copy):
+            continue  # already swapped by an earlier run
+        target = next((native[c] for c in candidates if c in native), None)
+        if not target:
+            missing.append(base)
+            continue
+        groups.setdefault(target, []).append(copy)
+    for target, copies in groups.items():
+        to = unreal.load_asset(target)
+        olds = [a for a in (unreal.load_asset(c) for c in copies) if a]
+        if to and olds and H.eal.consolidate_assets(to, olds):
+            for c in copies:
+                swapped[c.split("/")[-1]] = target.split("/")[-1]
+    _save_everything(info)
+    info["native_swapped"] = swapped
+    if missing:
+        info["native_missing"] = missing
+    return len(swapped)
 
 
-def _compiled_ok(bp):
-    try:
-        return bp.get_editor_property("status") != unreal.BlueprintStatus.BS_ERROR
-    except Exception:
-        return True  # status not readable in this engine: trust the compile
-
-
-def _quiet_cameras(bp, info):
-    """The Paragon sample characters carry their own camera; ours comes from the Combat class."""
-    try:
-        sds = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
-        lib = unreal.SubobjectDataBlueprintFunctionLibrary
-        for h in sds.k2_gather_subobject_data_for_blueprint(bp):
-            obj = lib.get_object(sds.k2_find_subobject_data_from_handle(h))
-            if isinstance(obj, unreal.CameraComponent):
-                obj.set_editor_property("auto_activate", False)
-                info.setdefault("cameras_off", []).append(obj.get_name())
-    except Exception as exc:
-        info["cameras_error"] = f"{type(exc).__name__}: {exc}"
-
-
-def adopt_paragon_character(name, info):
-    """Make the pack's sample character (e.g. GruxPlayerCharacter) a child of the Combat
-    player/enemy. The hero's own anim blueprint only works with that class, so this keeps
-    the Paragon movement while the Combat logic (AI, health, damage) comes from the parent.
-    Undone if it does not compile. Returns the sample character's path, or None."""
-    path = PARAGON_CHAR.format(name)
-    if not H.asset_exists(path):
-        info["adopt"] = f"missing {path}"
-        return None
-    bp = unreal.load_asset(path)
-    want = H.eal.load_blueprint_class(HEROES[name]["parent"])
-    before = bp.get_editor_property("parent_class")
-    info["paragon_parent_before"] = before.get_path_name()
-    if before.get_path_name() != want.get_path_name():
-        unreal.BlueprintEditorLibrary.reparent_blueprint(bp, want)
-        unreal.BlueprintEditorLibrary.compile_blueprint(bp)
-        if not _compiled_ok(bp):
-            unreal.BlueprintEditorLibrary.reparent_blueprint(bp, before)
-            unreal.BlueprintEditorLibrary.compile_blueprint(bp)
-            info["adopt"] = "reparent did not compile; undone"
-            return None
-    _quiet_cameras(bp, info)
-    H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
-    info["adopt"] = "ok"
-    return path
-
-
-def _native_anim_class(name, anims, info, adopted=False):
-    """The hero's own Paragon anim blueprint, made to play the Combat montages; None if unusable."""
-    path = PARAGON_ABP.format(name)
-    if not H.asset_exists(path):
-        info["native_anim"] = f"missing {path}"
-        return None
-    # an anim blueprint that casts to the hero's sample character would never see our character move
-    registry = unreal.AssetRegistryHelpers.get_asset_registry()
-    try:
-        opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
-                                                     include_hard_package_references=True)
-        deps = [str(d) for d in registry.get_dependencies(unreal.Name(path), opts) or []]
-    except Exception as exc:
-        deps = []
-        info["native_deps_error"] = f"{type(exc).__name__}: {exc}"
-    tied = [d for d in deps if "PlayerCharacter" in d]
-    if tied and not adopted:
-        info["native_anim"] = f"tied to {tied[0]}"
-        return None
-    abp = unreal.load_asset(path)
-    if not abp:
-        info["native_anim"] = f"could not load {path}"
-        return None
-    slot, source = _hero_montage_slot(name)
-    info["native_slot"] = {"slot": slot, "from": source}
-    if slot:
-        for key in ("AM_ComboAttack", "AM_ChargedAttack"):
-            m = anims.get(key)
-            if m and slot not in _montage_slots(m):
-                _set_montage_slot(m, slot)
-                info.setdefault("montage_slot_changed", []).append(m.get_name())
-    return abp.generated_class()
-
-
-def configure_blueprint(name, bp, mesh, anims, info, adopted=False):
+def configure_blueprint(name, bp, mesh, anims, info):
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     cdo = unreal.get_default_object(bp.generated_class())
     if mesh is not None and ANIM_BP.split("/")[-1] in anims:
         comp = cdo.get_editor_property("mesh")
         _call_first(comp, ["set_skeletal_mesh_asset", "set_skeletal_mesh"], mesh)
         comp.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT)
-        anim_class = None
-        if HEROES[name].get("anim") == "native":
-            try:
-                anim_class = _native_anim_class(name, anims, info, adopted)
-            except Exception as exc:
-                info["native_anim"] = f"{type(exc).__name__}: {exc}"
-        info["anim_source"] = "Paragon" if anim_class else "Combat (retargeted)"
-        comp.set_editor_property("anim_class", anim_class or anims[ANIM_BP.split("/")[-1]].generated_class())
+        comp.set_editor_property("anim_class", anims[ANIM_BP.split("/")[-1]].generated_class())
         scale, radius, half, z = _fit_body(name, mesh, info)
         comp.set_editor_property("relative_location", unreal.Vector(0, 0, z))
         comp.set_editor_property("relative_rotation", unreal.Rotator(roll=0.0, pitch=0.0, yaw=-90.0))
@@ -548,20 +483,18 @@ def build_character(name):
             anims = {}
             _discard_retarget(name, info)
         parent = HEROES[name]["parent"]
-        adopted = False
-        if anims and HEROES[name].get("anim") == "native":
+        if anims:
             try:
-                adopted_path = adopt_paragon_character(name, info)
+                use_native_animations(name, info)
             except Exception as exc:
-                adopted_path = None
-                info["adopt"] = f"{type(exc).__name__}: {exc}"
-            if adopted_path:
-                parent, adopted = adopted_path, True
+                info["native_error"] = f"{type(exc).__name__}: {exc}"
+            # the idle copy is gone once the hero's own animations are wired in
+            info["anim_source"] = "Combat (retargeted)" if H.asset_exists(f"/Game/MM_Idle_{name}") else "Paragon"
         bp = _child_blueprint(f"BP_HH_{name}", parent)
         info["parent"] = parent
         if name == PLAYER_HERO:
             add_lantern(bp, info)  # before configure_blueprint, which compiles and saves
-        configure_blueprint(name, bp, mesh if anims else None, anims, info, adopted)
+        configure_blueprint(name, bp, mesh if anims else None, anims, info)
         built[name] = bp.generated_class()
         info["blueprint"] = f"{CHAR_DIR}/BP_HH_{name}"
         info["ok"] = bool(anims)
