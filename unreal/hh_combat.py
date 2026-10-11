@@ -18,6 +18,7 @@ Saved/HollowHull/combat_probe.json, so the next round can be precise.
 
 import json
 import os
+import re
 import traceback
 
 import unreal
@@ -46,8 +47,8 @@ PLAYER_HERO = "Revenant"
 # Likely variable names on the Combat Blueprints (they mirror Epic's C++ version).
 # Whatever exists is recorded in the probe; montage names are matched by asset name.
 MONTAGE_PROPS = {
-    "AM_ComboAttack": ["ComboAttackMontage", "Combo Attack Montage", "ComboMontage", "AttackMontage"],
-    "AM_ChargedAttack": ["ChargedAttackMontage", "Charged Attack Montage", "ChargedMontage"],
+    "AM_ComboAttack": ["Combo Attack Montage", "ComboAttackMontage", "ComboMontage", "AttackMontage"],
+    "AM_ChargedAttack": ["Charged Attack Montage", "ChargedAttackMontage", "ChargedMontage"],
 }
 HP_PROPS = ["MaxHP", "Max HP", "MaxHealth", "Max Health", "HP", "Health", "CurrentHP", "Current HP"]
 PROBE_PROPS = (sum(MONTAGE_PROPS.values(), []) + HP_PROPS +
@@ -124,12 +125,26 @@ def probe_combat_blueprints():
     _write_probe()
 
 
+def _imc_mappings(imc):
+    getters = [lambda: imc.get_editor_property("mappings"),
+               lambda: imc.get_editor_property("default_key_mappings").get_editor_property("mappings"),
+               lambda: imc.get_mappings()]
+    for get in getters:
+        try:
+            found = list(get())
+            if found:
+                return found
+        except Exception:
+            pass
+    return []
+
+
 def record_controls():
     """Which keys the Combat input mapping uses, so the runner can print the controls."""
     controls = []
     try:
         imc = unreal.load_asset(COMBAT + "/Input/IMC_Combat")
-        for m in imc.get_editor_property("mappings"):
+        for m in _imc_mappings(imc):
             action = m.get_editor_property("action")
             key = m.get_editor_property("key")
             controls.append({"action": action.get_name() if action else "?",
@@ -177,36 +192,75 @@ def _retargeter(name, src_rig, tgt_rig, info):
     return rtg
 
 
-def _retargeted_path(path, name):
-    return f"{path}_{name}"
+RETARGET_CLASSES = {"AnimSequence", "AnimMontage", "BlendSpace", "BlendSpace1D", "AnimBlueprint"}
+
+
+def _retargeted_candidates(path, name):
+    """Where Unreal may have put the copy of path for this hero: the batch retarget
+    writes to the top Content folder, older engines next to the original."""
+    base = path.split("/")[-1]
+    return [f"/Game/{base}_{name}", f"{path.rsplit('/', 1)[0]}/{base}_{name}"]
+
+
+def _find_retargeted(name):
+    found = {}
+    for p in [ANIM_BP] + MONTAGES:
+        for cand in _retargeted_candidates(p, name):
+            if H.asset_exists(cand):
+                asset = unreal.load_asset(cand)
+                if asset:
+                    found[p.split("/")[-1]] = asset
+                    break
+    return found
+
+
+def _hero_copies_in_root(name):
+    """Retargeted animation assets for this hero in the top Content folder (ours to replace)."""
+    pattern = re.compile(rf"_{name}(_\d+)?$")
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    return [str(a.package_name) for a in registry.get_assets_by_path("/Game", recursive=False)
+            if str(a.asset_class_path.asset_name) in RETARGET_CLASSES and pattern.search(str(a.asset_name))]
+
+
+def _save_everything(info):
+    """The batch retarget leaves new assets (the anim blueprint among them) unsaved."""
+    try:
+        unreal.EditorLoadingAndSavingUtils.save_dirty_packages(False, True)
+    except Exception as exc:
+        info["save_dirty"] = f"{type(exc).__name__}: {exc}"
 
 
 def retarget_anims(name, manny, mesh, rtg, info):
     """Duplicate the Combat anim blueprint and montages onto this hero's skeleton.
     Returns {original asset name: retargeted asset}."""
     wanted = [ANIM_BP] + MONTAGES
-    if not all(H.asset_exists(_retargeted_path(p, name)) for p in wanted):
+    found = _find_retargeted(name)
+    if len(found) < len(wanted):
+        # an earlier run left an incomplete set: start this hero over
+        stale = _hero_copies_in_root(name)
+        for path in stale:
+            _try(info, "delete_stale", H.eal.delete_asset, path)
+        info["stale_removed"] = len(stale)
         assets = [H.eal.find_asset_data(p) for p in wanted]
         batch = unreal.IKRetargetBatchOperation
-        probe.setdefault("api", {}).setdefault("IKRetargetBatchOperation", _api(batch))
         out = batch.duplicate_and_retarget(assets, manny, mesh, rtg, "", "", "", f"_{name}", True)
         info["retargeted_assets"] = len(out or [])
-        for a in out or []:
-            H.eal.save_asset(str(a.package_name), only_if_is_dirty=False)
-    result = {}
-    for p in wanted:
-        asset = unreal.load_asset(_retargeted_path(p, name))
-        if asset:
-            result[p.split("/")[-1]] = asset
-    info["retargeted"] = sorted(result)
-    return result
+        info["retarget_output"] = sorted(str(a.package_name) for a in out or [])[:40]
+        _save_everything(info)
+        found = _find_retargeted(name)
+    info["retargeted"] = sorted(found)
+    missing = [p.split("/")[-1] for p in wanted if p.split("/")[-1] not in found]
+    if missing:
+        raise RuntimeError(f"retargeted copies not found for {missing}")
+    for asset in found.values():  # make sure they are on disk
+        H.eal.save_loaded_asset(asset, only_if_is_dirty=True)
+    return found
 
 
 def _discard_retarget(name, info):
     """Delete this hero's half-made retarget assets so the next run starts clean."""
     removed = []
-    for path in [f"{RTG_DIR}/IK_{name}", f"{RTG_DIR}/RTG_Manny_to_{name}"] + \
-            [_retargeted_path(p, name) for p in [ANIM_BP] + MONTAGES]:
+    for path in [f"{RTG_DIR}/IK_{name}", f"{RTG_DIR}/RTG_Manny_to_{name}"] + _hero_copies_in_root(name):
         try:
             if H.asset_exists(path) and H.eal.delete_asset(path):
                 removed.append(path.split("/")[-1])
@@ -270,9 +324,11 @@ def configure_blueprint(name, bp, mesh, anims, info):
         info["montage_props_set"] = set_props
     hp_scale = HEROES[name]["hp"]
     if hp_scale != 1.0:
+        # scale the parent's value (not this Blueprint's, which a previous run already scaled)
+        parent = unreal.get_default_object(H.eal.load_blueprint_class(HEROES[name]["parent"]))
         for p in HP_PROPS:
             try:
-                v = cdo.get_editor_property(p)
+                v = parent.get_editor_property(p)
                 cdo.set_editor_property(p, type(v)(v * hp_scale))
                 info.setdefault("hp_set", {})[p] = v * hp_scale
             except Exception:
