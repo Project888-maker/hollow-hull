@@ -1650,7 +1650,12 @@ def widen_melee_reach(info):
         info.setdefault("state_tree", {})["error"] = f"{type(exc).__name__}: {exc}"[:300]
     if "melee_reach_cm" not in info:
         st = info.get("state_tree", {})
-        info["melee_reach_cm"] = st.get("error") or st.get("readback") or st.get("root_parameters") or "not set"
+        # root_parameters cannot be read back from Python, but the bag write is what takes
+        # effect in Play (confirmed 2026-10-11), so a successful write counts as the reach
+        if str(st.get("root_parameter_property_bag", "")).startswith("set to"):
+            info["melee_reach_cm"] = MELEE_REACH_CM
+        else:
+            info["melee_reach_cm"] = st.get("error") or st.get("root_parameter_property_bag") or "not set"
     try:
         bp = unreal.load_asset(AI_CONTROLLER_BP)
         sds, comps = _component_templates(bp)

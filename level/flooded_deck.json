@@ -1,5 +1,6 @@
 {
   "level": "L_FloodedDeck",
+  "music": "music_ship",
   "cell_cm": 400,
   "storey_cm": 300,
   "legend": "columns run +X (east), rows run +Y (south). '.' = empty hull.",

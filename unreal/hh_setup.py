@@ -51,6 +51,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 import hh_combat  # noqa: E402  (Phase 2: Paragon characters on the Combat variant)
 importlib.reload(hh_combat)  # pick up edits when re-run in the same editor session
+import hh_audio  # noqa: E402  (not reloaded: init_unreal.py runs its in-game half)
 
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 mel = unreal.MaterialEditingLibrary
@@ -508,6 +509,13 @@ def stage_import():
     ctx["meshes"] = import_kit(ctx["manifest"], ctx["instances"])
 
 
+def stage_audio():
+    try:
+        hh_audio.import_audio(report, warn, log)
+    except Exception as exc:
+        warn(f"sounds not imported: {exc}")
+
+
 def stage_level():
     ctx["les"] = open_or_create_level()
 
@@ -615,7 +623,7 @@ def stage_combat_check():
 
 
 STAGES = ([("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials),
-           ("import", stage_import), ("combat check", stage_combat_check)] +
+           ("import", stage_import), ("audio", stage_audio), ("combat check", stage_combat_check)] +
           [(f"character {n}", _character_stage(n)) for n in hh_combat.HEROES] +
           [("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
            ("atmosphere", stage_atmosphere), ("gameplay", stage_gameplay), ("save", stage_save)])

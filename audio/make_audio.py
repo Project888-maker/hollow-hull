@@ -1,0 +1,398 @@
+"""Hollow Hull sound kit: every sound the game plays that the Paragon packs do not have.
+
+The Paragon heroes come with their voices (grunts, pain, death), but no footsteps,
+weapon sounds or music. These are synthesised here from noise and sine waves, so the
+repo carries no licensed audio:
+
+    music_ship     64 s seamless loop: hull drone, dissonant swells, groaning metal,
+                   creaks and drips (the flooded ship)
+    combat_layer   32 s seamless loop: slow war drums, low string ostinato and a high
+                   trembling cluster; faded in over the music while monsters are close
+    step_<floor>_N footsteps on steel, wood, grate and in shallow water
+    hit_N          a blow landing on a body
+    gunshot_N      Revenant's revolver
+    whoosh_N       a monster's swing through the air
+
+    python audio/make_audio.py        (needs numpy; writes audio/wav/*.wav)
+
+The output is deterministic (fixed random seeds), so re-running only changes files
+when this script changes. To give a new level its own music, add a music_<name>
+function and a line in MUSIC, and name it in level/<level>.json as "music".
+"""
+
+import os
+import wave
+
+import numpy as np
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wav")
+SR_SFX = 44100
+SR_MUSIC = 32000
+
+
+# --- building blocks ------------------------------------------------------
+
+def spectral(x, sr, gain_fn):
+    """Filter by multiplying the spectrum (circular, so loops stay seamless)."""
+    spec = np.fft.rfft(x, axis=0)
+    f = np.fft.rfftfreq(x.shape[0], 1.0 / sr)
+    g = gain_fn(np.maximum(f, 1e-3))
+    if spec.ndim == 2:
+        g = g[:, None]
+    return np.fft.irfft(spec * g, n=x.shape[0], axis=0)
+
+
+def lowpass(x, sr, fc, order=2):
+    return spectral(x, sr, lambda f: 1.0 / np.sqrt(1.0 + (f / fc) ** (2 * order)))
+
+
+def highpass(x, sr, fc, order=2):
+    return spectral(x, sr, lambda f: 1.0 / np.sqrt(1.0 + (fc / f) ** (2 * order)))
+
+
+def bandpass(x, sr, lo, hi, order=2):
+    return highpass(lowpass(x, sr, hi, order), sr, lo, order)
+
+
+def resonance(x, sr, fc, q):
+    """A single resonant peak (groaning metal, pipe ring)."""
+    return spectral(x, sr, lambda f: 1.0 / np.sqrt(1.0 + (q * (f / fc - fc / f)) ** 2))
+
+
+def env(n, attack, release, sr, curve=4.0):
+    a = max(1, int(attack * sr))
+    t = np.arange(n) / sr
+    e = np.exp(-curve * np.maximum(t - attack, 0) / max(release, 1e-3))
+    e[:a] *= np.linspace(0, 1, a)
+    return e
+
+
+def reverb_ir(sr, seconds, rng, stereo=False, damping=3000.0, predelay=0.02):
+    n = int(seconds * sr)
+    t = np.arange(n) / sr
+    chans = []
+    for _ in range(2 if stereo else 1):
+        noise = rng.standard_normal(n) * np.exp(-6.9 * t / seconds)  # -60 dB at the end
+        noise = lowpass(noise, sr, damping, 1)
+        noise[: int(predelay * sr)] = 0
+        chans.append(noise / np.sqrt(np.sum(noise ** 2)))
+    return np.stack(chans, axis=1) if stereo else chans[0]
+
+
+def circular_convolve(x, ir):
+    """Reverb that wraps around the loop end, so the loop has no seam."""
+    n = x.shape[0]
+    pad = np.zeros((n,) + ir.shape[1:])
+    pad[: min(n, ir.shape[0])] = ir[:n]
+    if x.ndim == 2 and pad.ndim == 1:
+        pad = np.stack([pad, pad], axis=1)
+    if x.ndim == 1 and pad.ndim == 2:
+        x = np.stack([x, x], axis=1)
+    return np.fft.irfft(np.fft.rfft(x, axis=0) * np.fft.rfft(pad, axis=0), n=n, axis=0)
+
+
+def tail_convolve(x, ir):
+    """Reverb for a one-shot: the tail is kept after the dry sound."""
+    n = x.shape[0] + ir.shape[0]
+    return np.fft.irfft(np.fft.rfft(x, n) * np.fft.rfft(ir, n), n=n)
+
+
+def place(buf, sound, at, wrap=True):
+    """Add sound into buf at sample index at (wrapping round the loop end)."""
+    n = buf.shape[0]
+    idx = (np.arange(sound.shape[0]) + at)
+    if wrap:
+        idx %= n
+    else:
+        keep = idx < n
+        idx, sound = idx[keep], sound[keep]
+    np.add.at(buf, idx, sound)
+
+
+def pan(mono, p):
+    """Equal-power pan, p from -1 (left) to 1 (right)."""
+    a = (p + 1) * np.pi / 4
+    return np.stack([mono * np.cos(a), mono * np.sin(a)], axis=1)
+
+
+def saw(freq, t, partials=12):
+    out = np.zeros_like(t)
+    for k in range(1, partials + 1):
+        out += np.sin(2 * np.pi * freq * k * t) / k
+    return out
+
+
+def note(name):
+    """'D2' -> Hz."""
+    names = {"C": -9, "C#": -8, "Db": -8, "D": -7, "D#": -6, "Eb": -6, "E": -5, "F": -4, "F#": -3,
+             "Gb": -3, "G": -2, "G#": -1, "Ab": -1, "A": 0, "A#": 1, "Bb": 1, "B": 2}
+    pitch, octave = name[:-1], int(name[-1])
+    return 440.0 * 2 ** ((names[pitch] + 12 * (octave - 4)) / 12)
+
+
+def normalize(x, peak_db=-1.0):
+    peak = np.max(np.abs(x))
+    return x * (10 ** (peak_db / 20) / peak) if peak > 0 else x
+
+
+def rms_to(x, target_db):
+    rms = np.sqrt(np.mean(x ** 2))
+    x = x * (10 ** (target_db / 20) / rms)
+    peak = np.max(np.abs(x))
+    return x * (0.97 / peak) if peak > 0.97 else x
+
+
+def fade(x, sr, fade_in=0.002, fade_out=0.05):
+    a, b = int(fade_in * sr), int(fade_out * sr)
+    x = x.copy()
+    if a:
+        x[:a] *= np.linspace(0, 1, a)[:, None] if x.ndim == 2 else np.linspace(0, 1, a)
+    if b:
+        x[-b:] *= np.linspace(1, 0, b)[:, None] if x.ndim == 2 else np.linspace(1, 0, b)
+    return x
+
+
+def write(name, x, sr):
+    os.makedirs(OUT, exist_ok=True)
+    data = np.clip(x, -1, 1)
+    chans = 1 if data.ndim == 1 else data.shape[1]
+    pcm = (data * 32767).astype("<i2")
+    with wave.open(os.path.join(OUT, name + ".wav"), "wb") as w:
+        w.setnchannels(chans)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm.tobytes())
+    print(f"{name}.wav  {x.shape[0] / sr:5.2f} s  {chans} ch")
+
+
+# --- music ------------------------------------------------------------------
+
+def music_ship():
+    """The flooded ship: a cold low drone, slow dissonant swells, the hull groaning,
+    creaks and drips, all in a big metal room. Loops seamlessly every 64 s."""
+    sr, secs = SR_MUSIC, 64
+    n = sr * secs
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(11)
+    out = np.zeros((n, 2))
+
+    # drone on D, breathing slowly (periods divide 64 s so the loop closes)
+    drone = np.zeros(n)
+    for f, amp, det in ((note("D1"), 1.0, 0.07), (note("A1"), 0.45, 0.05), (note("D2"), 0.3, 0.09)):
+        for d in (-det, det):
+            drone += amp * saw(f + d, t, 8)
+    breath = 0.75 + 0.25 * np.sin(2 * np.pi * t / 16.0)
+    drone = lowpass(drone * breath, sr, 220, 2)
+    out += pan(drone, -0.2) * 0.9 + pan(drone, 0.2) * 0.9
+
+    # dissonant swells: a minor second rubbing inside a fifth, one chord per 16 s
+    chords = [("D3", "Eb3", "A3"), ("C3", "Db3", "G3"), ("Bb2", "B2", "F3"), ("D3", "Eb3", "Ab3")]
+    for i, chord in enumerate(chords):
+        start = i * 16 * sr
+        length = 16 * sr + 4 * sr  # overlaps into the next, wrapping at the end
+        tt = np.arange(length) / sr
+        shape = np.sin(np.pi * np.clip(tt / (length / sr), 0, 1)) ** 2
+        voice = np.zeros(length)
+        for j, nm in enumerate(chord):
+            f = note(nm)
+            vib = 1 + 0.003 * np.sin(2 * np.pi * (0.13 + 0.05 * j) * tt)
+            phase = 2 * np.pi * np.cumsum(f * vib) / sr
+            voice += np.sin(phase) + 0.35 * np.sin(2 * phase) + 0.15 * np.sin(3 * phase)
+        voice = lowpass(voice * shape, sr, 900, 2) * 0.22
+        place(out, pan(voice, (-0.5, 0.5, -0.3, 0.3)[i]), start)
+
+    # the hull groaning: a slowly bending low resonance in filtered noise
+    for k in range(5):
+        length = int(rng.uniform(3.0, 5.0) * sr)
+        tt = np.arange(length) / sr
+        f0 = rng.uniform(55, 90)
+        bend = f0 * (1 - 0.18 * tt / tt[-1])
+        phase = 2 * np.pi * np.cumsum(bend) / sr
+        tone = np.sin(phase) + 0.6 * np.sin(2.01 * phase) + 0.3 * np.sin(3.03 * phase)
+        grit = bandpass(rng.standard_normal(length), sr, 80, 400) * 0.6
+        g = (tone * 0.5 + grit) * np.sin(np.pi * tt / tt[-1]) ** 1.5
+        place(out, pan(g * 0.35, rng.uniform(-0.8, 0.8)), int((k * 12.8 + rng.uniform(0, 4)) * sr))
+
+    # creaks: a run of tiny friction clicks speeding up and slowing down
+    for k in range(9):
+        length = int(rng.uniform(0.5, 1.4) * sr)
+        clicks = np.zeros(length)
+        pos, rate = 0.0, rng.uniform(25, 60)
+        while pos < length:
+            clicks[int(pos)] = rng.uniform(0.5, 1.0)
+            pos += sr / (rate * (1 + 0.6 * np.sin(np.pi * pos / length)))
+        creak = resonance(clicks, sr, rng.uniform(500, 1400), 6) * 0.5
+        place(out, pan(creak, rng.uniform(-1, 1)), int(rng.uniform(0, secs) * sr))
+
+    # drips: short rising blips somewhere in the dark
+    for k in range(26):
+        length = int(0.12 * sr)
+        tt = np.arange(length) / sr
+        f = rng.uniform(1100, 2400) * (1 + 1.5 * tt / tt[-1])
+        drip = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-tt * 45)
+        place(out, pan(drip * rng.uniform(0.08, 0.18), rng.uniform(-1, 1)), int(rng.uniform(0, secs) * sr))
+
+    out = circular_convolve(out, reverb_ir(sr, 3.5, rng, stereo=True, damping=2500)) * 0.7 + out * 0.5
+    out = highpass(out, sr, 28, 2)
+    return rms_to(out, -20), sr
+
+
+def music_combat():
+    """Fight layer over the ship music: slow heavy drums, a low string pulse and a
+    high trembling cluster. Same key (D), 32 s loop at 66 bpm."""
+    sr, secs = SR_MUSIC, 32
+    n = sr * secs
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(23)
+    out = np.zeros((n, 2))
+    beats = int(round(secs / (60.0 / 66)))  # snap the beat so 32 s holds whole beats
+    beat = secs / beats
+
+    def drum(f_hi, f_lo, decay, noise_amt):
+        length = int(1.2 * sr)
+        tt = np.arange(length) / sr
+        f = f_lo + (f_hi - f_lo) * np.exp(-tt * 18)
+        body = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-tt / decay)
+        skin = lowpass(rng.standard_normal(length), sr, 1800) * np.exp(-tt * 40) * noise_amt
+        return body + skin
+
+    # heartbeat pattern: boom-boom ... boom
+    pattern = [0, 0.38, 2, 4, 4.38, 6, 6.5, 7]
+    for bar in range(beats // 8):
+        for p in pattern:
+            hit = drum(120, 44, 0.45, 0.3) * (1.0 if p in (0, 4) else 0.6)
+            place(out, pan(hit, rng.uniform(-0.15, 0.15)), int((bar * 8 + p) * beat * sr))
+
+    # low strings: eighth notes on D with a fall to C# every other bar
+    strings = np.zeros(n)
+    for i in range(beats * 2):
+        f = note("D2") if (i // 16) % 2 == 0 or i % 16 < 12 else note("C#2")
+        length = int(beat / 2 * sr)
+        tt = np.arange(length) / sr
+        tone = saw(f, tt, 16) + 0.7 * saw(f * 1.004, tt, 16)
+        place(strings, tone * env(length, 0.01, 0.18, sr, 3), int(i * beat / 2 * sr))
+    strings = lowpass(strings, sr, 700, 2) * 0.16
+    out += pan(strings, -0.25) + pan(strings, 0.25) * 0.8
+
+    # high cluster, bowed tremolo, swelling over each 16 s half
+    trem = np.zeros(n)
+    for nm in ("D5", "Eb5", "A5"):
+        f = note(nm)
+        trem += saw(f * (1 + rng.uniform(-0.002, 0.002)), t, 6)
+    trem *= 0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 7.5 * t))  # tremolo bowing
+    trem = lowpass(trem, sr, 3500, 2) * (np.sin(np.pi * (t % 16) / 16) ** 2) * 0.05
+    out += pan(trem, 0.6) + pan(trem, -0.6) * 0.6
+
+    out = circular_convolve(out, reverb_ir(sr, 2.5, rng, stereo=True, damping=3500)) * 0.5 + out * 0.8
+    out = highpass(out, sr, 30, 2)
+    return rms_to(out, -18), sr
+
+
+MUSIC = {"music_ship": music_ship, "combat_layer": music_combat}
+
+
+# --- one-shots ---------------------------------------------------------------
+
+def _room(x, rng, seconds=0.6, wet=0.25, damping=4000):
+    return tail_convolve(x, reverb_ir(SR_SFX, seconds, rng, damping=damping)) * wet + np.pad(x, (0, int(seconds * SR_SFX)))
+
+
+def step(floor, i):
+    sr = SR_SFX
+    rng = np.random.default_rng(100 * ("steel", "wood", "grate", "water").index(floor) + i)
+    n = int(0.35 * sr)
+    tt = np.arange(n) / sr
+    click = rng.standard_normal(n) * np.exp(-tt * 180)
+    heel = np.sin(2 * np.pi * rng.uniform(70, 95) * tt) * np.exp(-tt * 40)
+    if floor == "steel":
+        modes = sum(np.sin(2 * np.pi * f * tt) * np.exp(-tt * d) * a for f, d, a in
+                    ((rng.uniform(420, 520), 30, 0.5), (rng.uniform(1150, 1350), 45, 0.35),
+                     (rng.uniform(2300, 2700), 60, 0.2), (rng.uniform(3800, 4300), 80, 0.1)))
+        x = heel * 0.8 + bandpass(click, sr, 500, 6000) * 0.5 + modes * 0.3
+        x = _room(x, rng, 0.7, 0.3)
+    elif floor == "wood":
+        knock = resonance(click, sr, rng.uniform(180, 260), 4) * 1.5
+        x = heel + knock + bandpass(click, sr, 800, 3000) * 0.3
+        x = _room(x, rng, 0.4, 0.15, 2500)
+    elif floor == "grate":
+        x = heel * 0.6
+        for k in range(4):  # the grate bars rattling against each other
+            at = int(rng.uniform(0.0, 0.05) * sr) + k * int(0.012 * sr)
+            r = resonance(rng.standard_normal(int(0.08 * sr)) * np.exp(-np.arange(int(0.08 * sr)) / sr * 90),
+                          sr, rng.uniform(1500, 3500), 12)
+            x[at:at + r.shape[0]] += r[: n - at] * 0.6
+        x = _room(x, rng, 0.7, 0.3)
+    else:  # water: a splash and a few bubbles
+        splash = bandpass(rng.standard_normal(n), sr, 700, 7000) * env(n, 0.01, 0.12, sr, 3)
+        bubbles = np.zeros(n)
+        for k in range(6):
+            at = int(rng.uniform(0.02, 0.18) * sr)
+            m = int(0.04 * sr)
+            bt = np.arange(m) / sr
+            f = rng.uniform(500, 1200) * (1 + 2 * bt / bt[-1])
+            b = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-bt * 70)
+            bubbles[at:at + m] += b[: n - at] * 0.3
+        x = heel * 0.5 + splash + bubbles
+        x = _room(x, rng, 0.5, 0.2)
+    return normalize(fade(x, sr), -3)
+
+
+def hit(i):
+    sr = SR_SFX
+    rng = np.random.default_rng(300 + i)
+    n = int(0.5 * sr)
+    tt = np.arange(n) / sr
+    thump = np.sin(2 * np.pi * np.cumsum(60 + 90 * np.exp(-tt * 30)) / sr) * np.exp(-tt * 14)
+    crunch = bandpass(rng.standard_normal(n), sr, 300, 3500) * np.exp(-tt * 35)
+    slap = highpass(rng.standard_normal(n), sr, 2000) * np.exp(-tt * 120)
+    x = thump + crunch * 0.7 + slap * 0.3
+    return normalize(fade(_room(x, rng, 0.5, 0.2), sr), -1)
+
+
+def gunshot(i):
+    sr = SR_SFX
+    rng = np.random.default_rng(500 + i)
+    n = int(0.8 * sr)
+    tt = np.arange(n) / sr
+    crack = highpass(rng.standard_normal(n), sr, 1200) * np.exp(-tt * 90)
+    blast = lowpass(rng.standard_normal(n), sr, 900) * np.exp(-tt * 18)
+    boom = np.sin(2 * np.pi * np.cumsum(45 + 120 * np.exp(-tt * 25)) / sr) * np.exp(-tt * 9)
+    x = crack * 0.9 + blast * 0.9 + boom * 0.8
+    x = np.tanh(x * 2.0)  # a little saturation
+    return normalize(fade(_room(x, rng, 1.6, 0.35, 3000), sr, 0.0005, 0.3), -1)
+
+
+def whoosh(i):
+    sr = SR_SFX
+    rng = np.random.default_rng(700 + i)
+    n = int(0.45 * sr)
+    tt = np.arange(n) / sr
+    noise = rng.standard_normal(n)
+    out = np.zeros(n)
+    centres = 500 + 1600 * np.sin(np.pi * tt / tt[-1]) ** 2  # sweeps up and back down
+    for k in range(8):  # piecewise band-pass following the sweep
+        lo, hi = k * n // 8, (k + 1) * n // 8
+        seg = bandpass(noise, sr, centres[(lo + hi) // 2] * 0.6, centres[(lo + hi) // 2] * 1.6)
+        w = np.zeros(n)
+        w[lo:hi] = 1
+        out += seg * lowpass(w, sr, 30, 1)
+    out *= np.sin(np.pi * tt / tt[-1]) ** 2
+    return normalize(fade(out, sr), -4)
+
+
+def main():
+    for name, fn in MUSIC.items():
+        x, sr = fn()
+        write(name, x, sr)
+    for floor in ("steel", "wood", "grate", "water"):
+        for i in range(1, 5):
+            write(f"step_{floor}_{i}", step(floor, i), SR_SFX)
+    for i in range(1, 4):
+        write(f"hit_{i}", hit(i), SR_SFX)
+        write(f"gunshot_{i}", gunshot(i), SR_SFX)
+    for i in range(1, 3):
+        write(f"whoosh_{i}", whoosh(i), SR_SFX)
+
+
+if __name__ == "__main__":
+    main()

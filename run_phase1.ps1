@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11z (Grux and Sevarog reach changed in the AI itself; health bar in the corner; no AI labels)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11s (sound: footsteps, swings, gunshots, hits, deaths, creepy ship music and a fight layer)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -455,10 +455,19 @@ if ($r.PSObject.Properties["combat"]) {
         ForEach-Object { "$($_.key) = $($_.action -replace '^IA_', '')" } | Select-Object -Unique)
     if ($keys.Count -gt 0) { Say "  attack keys: $($keys -join ', ')" "White" }
 }
+if ($r.audio) {
+    $a = $r.audio
+    if ($a.imported -gt 0) {
+        Say "Sound: $($a.imported) sounds imported (footsteps, hits, gunshots, swings, music)" "Green"
+        if ($a.falloff) { Say "  sounds fade with distance: $($a.falloff)" "White" }
+        foreach ($l in $a.level_music.PSObject.Properties) { Say "  music for $($l.Name): $($l.Value)" "White" }
+    } else { Say "Sound: nothing imported (see audio in setup_report.json)" "Yellow" }
+    if ($a.problems) { Say "  some sounds had problems (see audio.problems in setup_report.json)" "Yellow" }
+}
 Say "`nNow in Unreal: press Play (Alt+P). WASD to move, Space to jump."  "Cyan"
 Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine room (stairs to the mezzanine)" "Cyan"
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
 Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
-Say "While you play, a recorder writes reports\phase1\play_trace.json - send it and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
+Say "While you play, a recorder writes reports\phase1\play_trace.json and reports\phase1\audio_trace.json - send them and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null
