@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11m (run speed matches the legs, wider player capsule)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11n (foot IK off, legs measured for speed, softer hits, respawn as Revenant)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -394,10 +394,14 @@ if ($r.PSObject.Properties["combat"]) {
         if ($c.Name -eq "GameMode") { continue }
         if ($c.Value.ok) {
             $moves = if ($c.Value.anim_source -eq "Paragon") { "its own animations" } else { "Epic's combat animations" }
-            Say "  $($c.Name): Paragon body, $moves" "Green"
+            $pace = if ($c.Value.walk_speed.now) { ", moves at $($c.Value.walk_speed.now) cm/s" } else { "" }
+            Say "  $($c.Name): Paragon body, $moves$pace" "Green"
         }
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }
+    $gm = $r.combat.characters.GameMode
+    if ($gm -and $gm.respawn_class_property) { Say "  after dying you come back as $($gm.default_pawn)" "Green" }
+    elseif ($gm) { Say "  respawn: the Combat controller's respawn setting was not found (you may come back as the mannequin)" "Yellow" }
     $enemies = 0
     foreach ($k in $r.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $enemies += [int]$k.Value } }
     Say "  enemies placed: $enemies" "White"

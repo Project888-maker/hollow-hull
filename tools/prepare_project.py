@@ -122,6 +122,16 @@ def set_texture_budget(project_dir):
     print("[HH] texture streaming pool -> 1500 MB")
 
 
+def set_animation(project_dir):
+    # Epic's combat anim blueprint runs CR_Mannequin_FootIK, a Control Rig built for the
+    # mannequin skeleton; on the Paragon heroes it bent the knees and ankles wrongly.
+    # Nothing else in the project uses Control Rig, so its execution is switched off
+    # (the anim node then passes the animation through unchanged).
+    ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
+    set_ini_keys(ini, "[SystemSettings]", {"ControlRig.DisableExecutionAll": "1"})
+    print("[HH] foot IK rig -> off (it bent the Paragon legs)")
+
+
 def install_startup_hook(project_dir, repo):
     path = os.path.join(project_dir, "Content", "Python", "init_unreal.py")
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -144,6 +154,7 @@ def main(argv):
     set_navigation(project_dir)
     set_texture_budget(project_dir)
     set_performance(project_dir)
+    set_animation(project_dir)
     install_startup_hook(project_dir, args.repo)
     print(f"[HH] project ready: {os.path.abspath(args.existing)}")
 

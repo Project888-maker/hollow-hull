@@ -137,19 +137,48 @@ PROBE_TARGETS = {  # Combat Blueprint -> the engine class it builds on
 }
 
 
+# a name as the .uasset name table stores it: int32 length (with the null), chars, null
+_NAME_RE = re.compile(rb"([\x02-\x7f])\x00\x00\x00([ -~]{1,126})\x00")
+_variables_cache = {}
+
+
+def asset_names(path):
+    """Every name in the asset's name table (variables, functions, pins...). Python's view
+    of a Blueprint default object does not list Blueprint variables (their names have
+    spaces), but get_editor_property finds them once the name is known."""
+    content = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_content_dir())
+    with open(os.path.join(content, path[len("/Game/"):] + ".uasset"), "rb") as f:
+        data = f.read()
+    return {m.group(2).decode() for m in _NAME_RE.finditer(data) if m.group(1)[0] == len(m.group(2)) + 1}
+
+
 def blueprint_variables(path, engine_class):
-    """{name: value} of what the Blueprint adds on top of its engine class: Python's view
-    of a Blueprint default object lists the Blueprint's own variables."""
+    """{name: value} of the variables the Blueprint adds on top of its engine class."""
+    if path in _variables_cache:
+        return _variables_cache[path]
     cdo = unreal.get_default_object(H.eal.load_blueprint_class(path))
-    base = set(dir(unreal.get_default_object(getattr(unreal, engine_class).static_class())))
+    base = unreal.get_default_object(getattr(unreal, engine_class).static_class())
+    names = set()
+    try:
+        names |= asset_names(path)
+    except Exception as exc:
+        probe.setdefault("name_table_errors", {})[path] = f"{type(exc).__name__}: {exc}"
+    names |= set(dir(cdo)) - set(dir(base))
     out = {}
-    for n in sorted(set(dir(cdo)) - base):
-        if n.startswith("_"):
+    for n in sorted(names):
+        if n.startswith(("_", "/")) or "." in n:
             continue
         try:
-            out[n] = str(cdo.get_editor_property(n))[:120]
+            v = cdo.get_editor_property(n)
         except Exception:
-            out[n] = "(function or not readable)"
+            continue
+        try:
+            base.get_editor_property(n)
+            continue  # the engine class has it too
+        except Exception:
+            pass
+        out[n] = str(v)[:160]
+    _variables_cache[path] = out
     return out
 
 
@@ -449,6 +478,157 @@ def native_jog_speed(name, info):
     return max(speeds) if speeds else None
 
 
+def _anim_length(anim):
+    for get in (lambda: anim.get_play_length(), lambda: unreal.AnimationLibrary.get_sequence_length(anim),
+                lambda: anim.get_editor_property("sequence_length")):
+        try:
+            v = float(get())
+            if v > 0:
+                return v
+        except Exception:
+            pass
+    raise RuntimeError("no length")
+
+
+def measured_ground_speed(anim, samples=40):
+    """Speed (cm/s, unscaled) a locomotion cycle is meant to travel at, measured from its
+    feet: while a foot is planted it moves back, relative to the root, at exactly the speed
+    the body should move forward. Works for in-place and root-motion cycles alike."""
+    lib, world = unreal.AnimPoseExtensions, unreal.AnimPoseSpaces.WORLD
+    opts = unreal.AnimPoseEvaluationOptions()
+    length = _anim_length(anim)
+    dt = length / samples
+    tracks = {"foot_l": [], "foot_r": []}
+    for i in range(samples):
+        pose = lib.get_anim_pose_at_time(anim, i * dt, opts)
+        try:
+            root = lib.get_bone_pose(pose, "root", world).translation
+        except Exception:
+            root = unreal.Vector(0, 0, 0)
+        for bone, pts in tracks.items():
+            p = lib.get_bone_pose(pose, bone, world).translation
+            pts.append((p.x - root.x, p.y - root.y, p.z))
+    speeds = []
+    for pts in tracks.values():
+        zs = [p[2] for p in pts]
+        if max(zs) - min(zs) < 2:
+            continue  # the foot never lifts: not a walk or run
+        planted = min(zs) + 0.25 * (max(zs) - min(zs))
+        for a, b in zip(pts, pts[1:]):
+            if a[2] <= planted and b[2] <= planted:
+                speeds.append(((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 / dt)
+    speeds.sort()
+    return speeds[len(speeds) // 2] if speeds else None
+
+
+def hero_jog_speed(name, info):
+    """Authored (unscaled) speed of the hero's Jog_Fwd: measured from its feet, else read
+    from the Paragon blend spaces that place it. None if neither works."""
+    native = _native_assets(name)
+    if "Jog_Fwd" in native:
+        try:
+            v = measured_ground_speed(unreal.load_asset(native["Jog_Fwd"]))
+            info["jog_speed_measured"] = round(v) if v else None
+            if v and 150 <= v <= 900:
+                return v
+        except Exception as exc:
+            info["jog_speed_measure_error"] = f"{type(exc).__name__}: {exc}"
+    return native_jog_speed(name, info)
+
+
+def _speed_axis(bs):
+    params = list(bs.get_editor_property("blend_parameters"))
+    if isinstance(bs, getattr(unreal, "BlendSpace1D", ())):
+        return 0, params
+    for i, p in enumerate(params[:2]):
+        if "speed" in str(p.get_editor_property("display_name")).lower():
+            return i, params
+    return (1 if abs(params[1].get_editor_property("max")) > abs(params[0].get_editor_property("max")) else 0), params
+
+
+_AXES = ("x", "y", "z")
+
+
+def fit_locomotion_blendspace(name, jog_speed, info):
+    """The Combat anim blueprint picks idle/walk/jog from a blend space laid out for the
+    mannequin (its jog sits at the mannequin's run speed). With the hero's own Jog_Fwd in
+    that slot, the body moved at one speed while the legs ran at another: sliding. Move
+    the samples so the jog sits at the hero's real (scaled) jog speed, and slow the jog
+    down where it also stands in for a walk."""
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
+                                                 include_hard_package_references=True)
+    abp = f"/Game/{ANIM_BP.split('/')[-1]}_{name}"
+    report = info.setdefault("blendspace", {})
+    for dep in registry.get_dependencies(unreal.Name(abp), opts) or []:
+        bs = unreal.load_asset(str(dep))
+        if not isinstance(bs, unreal.BlendSpace):
+            continue
+        entry = report.setdefault(bs.get_name(), {})
+        try:
+            axis, params = _speed_axis(bs)
+            ax = _AXES[axis]
+            samples = list(bs.get_editor_property("sample_data"))
+
+            def speed_of(smp):
+                return abs(getattr(smp.get_editor_property("sample_value"), ax))
+
+            def anim_name(smp):
+                a = smp.get_editor_property("animation")
+                return a.get_name() if a else ""
+
+            jogs = [speed_of(x) for x in samples if anim_name(x) == "Jog_Fwd"]
+            if not jogs or max(jogs) <= 0:
+                entry["skipped"] = "no Jog_Fwd sample"
+                continue
+            k = jog_speed / max(jogs)
+            entry["jog_was"], entry["jog_now"] = round(max(jogs)), round(jog_speed)
+            if k > 1.0:  # the samples must stay inside the axis range
+                p = params[axis]
+                p.set_editor_property("max", float(p.get_editor_property("max")) * k)
+                params[axis] = p
+                bs.set_editor_property("blend_parameters", params)
+            for smp in samples:
+                v = smp.get_editor_property("sample_value")
+                setattr(v, ax, getattr(v, ax) * k)
+                smp.set_editor_property("sample_value", v)
+                if anim_name(smp).startswith("Jog_") and 0 < speed_of(smp) < jog_speed * 0.95:
+                    # the jog standing in for a walk: legs slow down with the body
+                    smp.set_editor_property("rate_scale", max(0.4, speed_of(smp) / jog_speed))
+            bs.set_editor_property("sample_data", samples)
+            H.eal.save_loaded_asset(bs, only_if_is_dirty=False)
+            entry["samples"] = [[anim_name(x), round(speed_of(x)),
+                                 round(x.get_editor_property("rate_scale"), 2)] for x in samples]
+        except Exception as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+
+
+IMPACT_SCALE = 0.4  # Epic's hits throw bodies across an open arena; this ship has 4 m corridors
+
+
+def tune_impacts(name, cdo, info):
+    """Softer knockback and launch on hits (they flung bodies through walls and onto
+    their heads), and Epic's on-screen debug text off. Values come from the parent so
+    re-runs do not compound."""
+    parent_path = HEROES[name]["parent"]
+    own = blueprint_variables(parent_path, "Character")
+    parent = unreal.get_default_object(H.eal.load_blueprint_class(parent_path))
+    changed = {}
+    for n in own:
+        low = n.lower().replace(" ", "")
+        try:
+            v = parent.get_editor_property(n)
+            if any(k in low for k in ("impulse", "knockback", "launch")) and type(v) in (int, float):
+                cdo.set_editor_property(n, type(v)(v * IMPACT_SCALE))
+                changed[n] = [v, round(v * IMPACT_SCALE, 2)]
+            elif "debug" in low and v is True:
+                cdo.set_editor_property(n, False)
+                changed[n] = [True, False]
+        except Exception:
+            pass
+    info["impacts"] = changed
+
+
 def animation_blueprint_rigs(info):
     """Control Rigs the Combat anim blueprint runs (one bends Paragon legs wrongly)."""
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -545,7 +725,7 @@ def configure_blueprint(name, bp, mesh, anims, info):
     speed = HEROES[name].get("speed")
     jog = None
     try:
-        jog = native_jog_speed(name, info)
+        jog = hero_jog_speed(name, info)
     except Exception as exc:
         info["jog_speed_error"] = f"{type(exc).__name__}: {exc}"
     scale = (info.get("body") or {}).get("scale", 1.0)
@@ -553,8 +733,14 @@ def configure_blueprint(name, bp, mesh, anims, info):
         # feet stay planted when the body moves at the speed the jog was made for
         # (shrunk with the mesh); enemies keep their slower cap for the narrow ship
         matched = round(jog * scale)
-        speed = min(speed, matched) if speed else matched
+        speed = matched if name == PLAYER_HERO else min(speed, matched)
         info["jog_speed"] = {"authored": round(jog), "scaled": matched}
+        if mesh is not None:
+            fit_locomotion_blendspace(name, matched, info)
+    try:
+        tune_impacts(name, cdo, info)
+    except Exception as exc:
+        info["impacts_error"] = f"{type(exc).__name__}: {exc}"
     if speed:  # Epic's enemies are tuned for an open arena; the ship's corridors are 4 m wide
         try:
             cmc = cdo.get_editor_property("character_movement")
