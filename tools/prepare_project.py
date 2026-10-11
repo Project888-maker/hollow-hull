@@ -123,13 +123,13 @@ def set_texture_budget(project_dir):
 
 
 def set_animation(project_dir):
-    # Epic's combat anim blueprint runs CR_Mannequin_FootIK, a Control Rig built for the
-    # mannequin skeleton; on the Paragon heroes it bent the knees and ankles wrongly.
-    # Nothing else in the project uses Control Rig, so its execution is switched off
-    # (the anim node then passes the animation through unchanged).
+    # 2026-10-11n switched all Control Rig execution off to stop the mannequin foot IK
+    # bending the Paragon legs; that froze the heroes in a broken pose instead (legs
+    # folded, gun on the floor). Execution is back on; the foot IK node is turned off
+    # inside each hero's anim blueprint by hh_combat.disable_foot_ik.
     ini = os.path.join(project_dir, "Config", "DefaultEngine.ini")
-    set_ini_keys(ini, "[SystemSettings]", {"ControlRig.DisableExecutionAll": "1"})
-    print("[HH] foot IK rig -> off (it bent the Paragon legs)")
+    set_ini_keys(ini, "[SystemSettings]", {"ControlRig.DisableExecutionAll": "0"})
+    print("[HH] Control Rig -> on (foot IK is switched off per hero instead)")
 
 
 def install_startup_hook(project_dir, repo):

@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11n (foot IK off, legs measured for speed, softer hits, respawn as Revenant)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11o (undo the frozen-legs pose; foot IK off per hero)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -396,6 +396,7 @@ if ($r.PSObject.Properties["combat"]) {
             $moves = if ($c.Value.anim_source -eq "Paragon") { "its own animations" } else { "Epic's combat animations" }
             $pace = if ($c.Value.walk_speed.now) { ", moves at $($c.Value.walk_speed.now) cm/s" } else { "" }
             Say "  $($c.Name): Paragon body, $moves$pace" "Green"
+            if (-not $c.Value.foot_ik.off) { Say "    (foot adjuster could not be switched off for $($c.Name); legs may still bend)" "Yellow" }
         }
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }

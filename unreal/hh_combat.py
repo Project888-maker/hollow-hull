@@ -629,6 +629,55 @@ def tune_impacts(name, cdo, info):
     info["impacts"] = changed
 
 
+def _control_rig_nodes(abp_path):
+    """The Control Rig nodes in a hero's anim blueprint graph."""
+    asset = abp_path.split("/")[-1]
+    found = {}
+    node_cls = getattr(unreal, "AnimGraphNode_ControlRig", None)
+    if node_cls is not None and hasattr(unreal, "ObjectIterator"):
+        for obj in unreal.ObjectIterator(node_cls):
+            if obj.get_path_name().startswith(abp_path + "."):
+                found[obj.get_path_name()] = obj
+    if not found:
+        for i in range(8):
+            obj = unreal.find_object(None, f"{abp_path}.{asset}:AnimGraph.AnimGraphNode_ControlRig_{i}")
+            if obj is not None:
+                found[obj.get_path_name()] = obj
+    return list(found.values())
+
+
+def disable_foot_ik(name, info):
+    """Epic's combat anim blueprint ends with CR_Mannequin_FootIK, a foot-placement rig
+    made for the mannequin skeleton; on the Paragon heroes it bent knees and ankles.
+    Its node is set to zero strength in the hero's copy, so the animation passes
+    through it unchanged, and the blueprint is recompiled."""
+    abp_path = f"/Game/{ANIM_BP.split('/')[-1]}_{name}"
+    report = info.setdefault("foot_ik", {})
+    abp = unreal.load_asset(abp_path)
+    if abp is None:
+        report["error"] = "no anim blueprint copy"
+        return
+    nodes = _control_rig_nodes(abp_path)
+    report["nodes"] = len(nodes)
+    done = []
+    for graph_node in nodes:
+        try:
+            node = graph_node.get_editor_property("node")
+            for prop, value in (("alpha", 0.0), ("alpha_bool_enabled", False)):
+                try:
+                    node.set_editor_property(prop, value)
+                except Exception:
+                    pass
+            graph_node.set_editor_property("node", node)
+            done.append(graph_node.get_name())
+        except Exception as exc:
+            report.setdefault("errors", []).append(f"{graph_node.get_name()}: {type(exc).__name__}: {exc}")
+    if done:
+        unreal.BlueprintEditorLibrary.compile_blueprint(abp)
+        H.eal.save_loaded_asset(abp, only_if_is_dirty=False)
+    report["off"] = done
+
+
 def animation_blueprint_rigs(info):
     """Control Rigs the Combat anim blueprint runs (one bends Paragon legs wrongly)."""
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -819,6 +868,10 @@ def build_character(name):
                 use_native_animations(name, info)
             except Exception as exc:
                 info["native_error"] = f"{type(exc).__name__}: {exc}"
+            try:
+                disable_foot_ik(name, info)
+            except Exception as exc:
+                info.setdefault("foot_ik", {})["error"] = f"{type(exc).__name__}: {exc}"
             # the idle copy is gone once the hero's own animations are wired in
             idle = unreal.load_asset(f"/Game/MM_Idle_{name}")  # a redirector to the hero's Idle once swapped
             native = idle is None or idle.get_path_name().startswith(f"/Game/Paragon{name}/")
