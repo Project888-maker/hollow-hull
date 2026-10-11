@@ -46,7 +46,11 @@ PARAGON = "/Game/Paragon{0}/Characters/Heroes/{0}/Meshes/{0}"
 # skeleton: they carry the AI, combo and damage logic), but the mannequin animations
 # inside them are swapped for the hero's own Paragon ones (see NATIVE_ANIMS).
 HEROES = {
-    "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165, "speed": 360, "min_radius": 48},
+    "Revenant": {"parent": PLAYER_BP, "hp": 3.0, "head_cm": 165, "speed": 360, "min_radius": 48,
+                 # his own gun shots (the mannequin's punches left the gun hanging in the air)
+                 "attacks": ["Primary_Fire_Fast", "Primary_Fire_Med", "Primary_Fire_Slow", "RMB"],
+                 # shots reach further than fists; camera far enough back to see him walk
+                 "props": {"Melee Trace Distance": 250.0, "Default Camera Distance": 220.0}},
     "Khaimera": {"parent": ENEMY_BP, "hp": 1.0, "head_cm": 165, "speed": 380,
                  "attacks": ["Melee_A", "Melee_B", "Melee_C", "Melee_A_Slow"]},
     "Grux": {"parent": ENEMY_BP, "hp": 2.0, "head_cm": 205, "speed": 300,
@@ -303,7 +307,7 @@ def _find_retargeted(name):
 
 def _hero_copies_in_root(name):
     """Retargeted animation assets for this hero in the top Content folder (ours to replace)."""
-    pattern = re.compile(rf"_{name}(_\d+)?$")
+    pattern = re.compile(rf"_{name}_?\d*$")
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
     return [str(a.package_name) for a in registry.get_assets_by_path("/Game", recursive=False)
             if str(a.asset_class_path.asset_name) in RETARGET_CLASSES and pattern.search(str(a.asset_name))]
@@ -430,18 +434,24 @@ def use_native_animations(name, info):
         plan[slot] = [anim]
     swapped, missing = {}, []
     groups = {}
+    # a re-run of the retarget can add a numbered set (MF_Unarmed_Jog_Fwd_Revenant1, ...)
+    # next to the first; the anim blueprint may use either, so all are swapped
+    root = {}
+    registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    for a in registry.get_assets_by_path("/Game", recursive=False):
+        m = re.match(rf"^(.*)_{name}_?\d*$", str(a.asset_name))
+        if m:
+            root.setdefault(m.group(1), []).append(str(a.package_name))
     for base, candidates in plan.items():
-        copy = f"/Game/{base}_{name}"
-        if not H.asset_exists(copy):
-            continue
-        current = unreal.load_asset(copy)
-        if current is None or current.get_path_name().startswith(f"/Game/Paragon{name}/"):
-            continue  # already swapped by an earlier run (the copy is now a redirector)
-        target = next((native[c] for c in candidates if c in native), None)
-        if not target:
-            missing.append(base)
-            continue
-        groups.setdefault(target, []).append(copy)
+        for copy in root.get(base, []):
+            current = unreal.load_asset(copy)
+            if current is None or current.get_path_name().startswith(f"/Game/Paragon{name}/"):
+                continue  # already swapped by an earlier run (the copy is now a redirector)
+            target = next((native[c] for c in candidates if c in native), None)
+            if not target:
+                missing.append(base)
+                continue
+            groups.setdefault(target, []).append(copy)
     for target, copies in groups.items():
         to = unreal.load_asset(target)
         olds = [a for a in (unreal.load_asset(c) for c in copies) if a]
@@ -549,17 +559,30 @@ def _speed_axis(bs):
 _AXES = ("x", "y", "z")
 
 
-def fit_locomotion_blendspace(name, jog_speed, info):
+def fit_locomotion_blendspace(name, jog_speed, scale, info):
     """The Combat anim blueprint picks idle/walk/jog from a blend space laid out for the
-    mannequin (its jog sits at the mannequin's run speed). With the hero's own Jog_Fwd in
-    that slot, the body moved at one speed while the legs ran at another: sliding. Move
-    the samples so the jog sits at the hero's real (scaled) jog speed, and slow the jog
-    down where it also stands in for a walk."""
+    mannequin (its run sits at the mannequin's run speed). With the hero's own animations
+    in those slots, the body moved at one speed while the legs ran at another: sliding.
+    The fastest sample (the jog) is moved to the hero's real scaled jog speed, the rest
+    in proportion, and each animation's play rate is set so its feet match the speed it
+    now stands for (a jog standing in for a walk plays slower)."""
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
     opts = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False,
                                                  include_hard_package_references=True)
     abp = f"/Game/{ANIM_BP.split('/')[-1]}_{name}"
     report = info.setdefault("blendspace", {})
+    natural = {}  # anim name -> its own scaled ground speed
+
+    def natural_speed(anim):
+        key = anim.get_name()
+        if key not in natural:
+            try:
+                v = measured_ground_speed(anim)
+                natural[key] = v * scale if v and v >= 50 else None
+            except Exception:
+                natural[key] = None
+        return natural[key]
+
     for dep in registry.get_dependencies(unreal.Name(abp), opts) or []:
         bs = unreal.load_asset(str(dep))
         if not isinstance(bs, unreal.BlendSpace):
@@ -573,16 +596,15 @@ def fit_locomotion_blendspace(name, jog_speed, info):
             def speed_of(smp):
                 return abs(getattr(smp.get_editor_property("sample_value"), ax))
 
-            def anim_name(smp):
-                a = smp.get_editor_property("animation")
-                return a.get_name() if a else ""
+            def anim_of(smp):
+                return smp.get_editor_property("animation")
 
-            jogs = [speed_of(x) for x in samples if anim_name(x) == "Jog_Fwd"]
-            if not jogs or max(jogs) <= 0:
-                entry["skipped"] = "no Jog_Fwd sample"
+            entry["before"] = [[anim_of(x).get_name() if anim_of(x) else "", round(speed_of(x))] for x in samples]
+            top = max(samples, key=speed_of) if samples else None
+            if top is None or speed_of(top) <= 0:
+                entry["skipped"] = "no moving sample"
                 continue
-            k = jog_speed / max(jogs)
-            entry["jog_was"], entry["jog_now"] = round(max(jogs)), round(jog_speed)
+            k = jog_speed / speed_of(top)
             if k > 1.0:  # the samples must stay inside the axis range
                 p = params[axis]
                 p.set_editor_property("max", float(p.get_editor_property("max")) * k)
@@ -592,18 +614,21 @@ def fit_locomotion_blendspace(name, jog_speed, info):
                 v = smp.get_editor_property("sample_value")
                 setattr(v, ax, getattr(v, ax) * k)
                 smp.set_editor_property("sample_value", v)
-                if anim_name(smp).startswith("Jog_") and 0 < speed_of(smp) < jog_speed * 0.95:
-                    # the jog standing in for a walk: legs slow down with the body
-                    smp.set_editor_property("rate_scale", max(0.4, speed_of(smp) / jog_speed))
+                anim = anim_of(smp)
+                own = natural_speed(anim) if anim and speed_of(smp) > 0 else None
+                if own:
+                    smp.set_editor_property("rate_scale", min(1.6, max(0.4, speed_of(smp) / own)))
             bs.set_editor_property("sample_data", samples)
             H.eal.save_loaded_asset(bs, only_if_is_dirty=False)
-            entry["samples"] = [[anim_name(x), round(speed_of(x)),
-                                 round(x.get_editor_property("rate_scale"), 2)] for x in samples]
+            entry["after"] = [[anim_of(x).get_name() if anim_of(x) else "", round(speed_of(x)),
+                               round(x.get_editor_property("rate_scale"), 2)] for x in samples]
         except Exception as exc:
             entry["error"] = f"{type(exc).__name__}: {exc}"
 
 
-IMPACT_SCALE = 0.4  # Epic's hits throw bodies across an open arena; this ship has 4 m corridors
+# Epic's hits throw bodies across an open arena; this ship has 4 m corridors. The upward
+# launch sent people tumbling through the air, so it goes almost entirely.
+IMPACT_SCALE = {"launch": 0.1, "impulse": 0.4, "knockback": 0.4}
 
 
 def tune_impacts(name, cdo, info):
@@ -618,9 +643,10 @@ def tune_impacts(name, cdo, info):
         low = n.lower().replace(" ", "")
         try:
             v = parent.get_editor_property(n)
-            if any(k in low for k in ("impulse", "knockback", "launch")) and type(v) in (int, float):
-                cdo.set_editor_property(n, type(v)(v * IMPACT_SCALE))
-                changed[n] = [v, round(v * IMPACT_SCALE, 2)]
+            factor = next((f for k, f in IMPACT_SCALE.items() if k in low), None)
+            if factor is not None and type(v) in (int, float):
+                cdo.set_editor_property(n, type(v)(v * factor))
+                changed[n] = [v, round(v * factor, 2)]
             elif "debug" in low and v is True:
                 cdo.set_editor_property(n, False)
                 changed[n] = [True, False]
@@ -694,6 +720,36 @@ def animation_blueprint_rigs(info):
     return out
 
 
+LOOSE_BONE_WORDS = ("weapon", "gun", "pistol", "sword", "blade", "axe", "scythe", "prop", "ik_", "attach")
+
+
+def pin_loose_bodies(name, pa, info):
+    """Bodies whose bone does not hang off the pelvis (Revenant's gun sits under an IK bone
+    at the root) have nothing holding them to the body; when the character went limp they
+    flew off on their own. They are made kinematic: they follow the animation instead."""
+    native = _native_assets(name)
+    ref_anim = unreal.load_asset(native["Idle"]) if "Idle" in native else None
+    pinned = []
+    bodies = list(pa.get_editor_property("skeletal_body_setups"))
+    for body in bodies:
+        bone = str(body.get_editor_property("bone_name"))
+        loose = None
+        if ref_anim is not None:
+            try:
+                path = [str(b) for b in unreal.AnimationLibrary.find_bone_path_to_root(ref_anim, bone)]
+                loose = "pelvis" not in path
+            except Exception:
+                loose = None
+        if loose is None:
+            loose = any(w in bone.lower() for w in LOOSE_BONE_WORDS)
+        if loose:
+            body.set_editor_property("physics_type", unreal.PhysicsType.KINEMATIC)
+            pinned.append(bone)
+    if pinned:
+        H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
+    info["physics_pinned"] = pinned
+
+
 def ragdoll_physics(name, mesh, info):
     """A per-bone physics asset for the hero. The Combat characters go limp when hit and
     when they die; the Paragon meshes only carry coarse shape helpers (e.g. Grux_Extents),
@@ -705,7 +761,9 @@ def ragdoll_physics(name, mesh, info):
         info["physics_before"] = "?"
     path = f"{CHAR_DIR}/PA_HH_{name}"
     if H.asset_exists(path):
-        return unreal.load_asset(path)
+        pa = unreal.load_asset(path)
+        pin_loose_bodies(name, pa, info)
+        return pa
     makers = []
     try:
         makers.append(unreal.get_editor_subsystem(unreal.SkeletalMeshEditorSubsystem))
@@ -727,6 +785,7 @@ def ragdoll_physics(name, mesh, info):
             if pa.get_path_name().split(".")[0] != path:
                 H.eal.rename_asset(pa.get_path_name().split(".")[0], path)
                 pa = unreal.load_asset(path)
+            pin_loose_bodies(name, pa, info)
             H.eal.save_loaded_asset(pa, only_if_is_dirty=False)
             info["physics"] = "made per-bone ragdoll"
             return pa
@@ -734,7 +793,9 @@ def ragdoll_physics(name, mesh, info):
     return None
 
 
-def configure_blueprint(name, bp, mesh, anims, info):
+def configure_blueprint(name, bp, mesh, anims, info, stats=True):
+    """Dress bp as the hero. stats=False (used on Epic's own character, which is its own
+    parent) leaves health and hit strength alone so re-runs cannot compound them."""
     unreal.BlueprintEditorLibrary.compile_blueprint(bp)
     cdo = unreal.get_default_object(bp.generated_class())
     if mesh is not None and ANIM_BP.split("/")[-1] in anims:
@@ -785,11 +846,18 @@ def configure_blueprint(name, bp, mesh, anims, info):
         speed = matched if name == PLAYER_HERO else min(speed, matched)
         info["jog_speed"] = {"authored": round(jog), "scaled": matched}
         if mesh is not None:
-            fit_locomotion_blendspace(name, matched, info)
-    try:
-        tune_impacts(name, cdo, info)
-    except Exception as exc:
-        info["impacts_error"] = f"{type(exc).__name__}: {exc}"
+            fit_locomotion_blendspace(name, matched, scale, info)
+    if stats:
+        try:
+            tune_impacts(name, cdo, info)
+        except Exception as exc:
+            info["impacts_error"] = f"{type(exc).__name__}: {exc}"
+    for prop, value in HEROES[name].get("props", {}).items():
+        try:
+            cdo.set_editor_property(prop, value)
+            info.setdefault("props_set", {})[prop] = value
+        except Exception as exc:
+            info.setdefault("props_failed", {})[prop] = f"{type(exc).__name__}: {exc}"
     if speed:  # Epic's enemies are tuned for an open arena; the ship's corridors are 4 m wide
         try:
             cmc = cdo.get_editor_property("character_movement")
@@ -798,7 +866,7 @@ def configure_blueprint(name, bp, mesh, anims, info):
         except Exception as exc:
             info["walk_speed"] = f"{type(exc).__name__}: {exc}"
     hp_scale = HEROES[name]["hp"]
-    if hp_scale != 1.0:
+    if stats and hp_scale != 1.0:
         # scale the parent's value (not this Blueprint's, which a previous run already scaled)
         parent = unreal.get_default_object(H.eal.load_blueprint_class(HEROES[name]["parent"]))
         for p in HP_PROPS:
@@ -838,6 +906,20 @@ def add_lantern(bp, info):
         info["lantern"] = "ok"
     except Exception as exc:
         info["lantern"] = f"{type(exc).__name__}: {exc}"
+
+
+def dress_epic_character(name, mesh, anims):
+    """Epic's player controller respawns its own BP_CombatCharacter after death (the class
+    is fixed inside its graph, there is no setting for it), so that character is dressed
+    as the hero too: mesh, animations, size, speed and attacks; health stays Epic's."""
+    info = H.report["combat"].setdefault("epic_character", {})
+    try:
+        bp = unreal.load_asset(PLAYER_BP)
+        configure_blueprint(name, bp, mesh, anims, info, stats=False)
+        info["ok"] = True
+    except Exception as exc:
+        info["ok"] = False
+        info["error"] = f"{type(exc).__name__}: {exc}"
 
 
 def build_character(name):
@@ -882,6 +964,8 @@ def build_character(name):
             add_lantern(bp, info)  # before configure_blueprint, which compiles and saves
         configure_blueprint(name, bp, mesh if anims else None, anims, info)
         built[name] = bp.generated_class()
+        if name == PLAYER_HERO and anims:
+            dress_epic_character(name, mesh, anims)
         info["blueprint"] = f"{CHAR_DIR}/BP_HH_{name}"
         info["ok"] = bool(anims)
         H.log(f"{name}: {'Paragon body' if anims else 'mannequin body'} -> {info['blueprint']}")

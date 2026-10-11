@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11o (undo the frozen-legs pose; foot IK off per hero)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11p (Revenant shoots, run speed table fixed, no launching, respawn as Revenant)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -401,8 +401,8 @@ if ($r.PSObject.Properties["combat"]) {
         else { Say "  $($c.Name): mannequin body for now (details in setup_report.json)" "Yellow" }
     }
     $gm = $r.combat.characters.GameMode
-    if ($gm -and $gm.respawn_class_property) { Say "  after dying you come back as $($gm.default_pawn)" "Green" }
-    elseif ($gm) { Say "  respawn: the Combat controller's respawn setting was not found (you may come back as the mannequin)" "Yellow" }
+    if ($r.combat.epic_character.ok) { Say "  after dying you come back as Revenant" "Green" }
+    elseif ($gm) { Say "  respawn: could not dress Epic's character as Revenant (you may come back as the mannequin)" "Yellow" }
     $enemies = 0
     foreach ($k in $r.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $enemies += [int]$k.Value } }
     Say "  enemies placed: $enemies" "White"
