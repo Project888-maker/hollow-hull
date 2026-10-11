@@ -489,7 +489,9 @@ def build_character(name):
             except Exception as exc:
                 info["native_error"] = f"{type(exc).__name__}: {exc}"
             # the idle copy is gone once the hero's own animations are wired in
-            info["anim_source"] = "Combat (retargeted)" if H.asset_exists(f"/Game/MM_Idle_{name}") else "Paragon"
+            idle = unreal.load_asset(f"/Game/MM_Idle_{name}")  # a redirector to the hero's Idle once swapped
+            native = idle is None or idle.get_path_name().startswith(f"/Game/Paragon{name}/")
+            info["anim_source"] = "Paragon" if native else "Combat (retargeted)"
         bp = _child_blueprint(f"BP_HH_{name}", parent)
         info["parent"] = parent
         if name == PLAYER_HERO:
@@ -557,9 +559,29 @@ def spawn_gameplay(data):
         H._tag(actor, "enemies")
         actor.set_actor_label(f"Enemy_{e['type']}_{e['zone']}")
         H._count(f"Enemy_{e['type']}")
+    build_navigation(nav)
+    return build_game_mode()
+
+
+def build_navigation(nav):
+    """Scaling the volume from Python does not tell the navigation system its bounds
+    changed (the old build covered a 2 m cube, and in Play the enemies had no nav mesh),
+    so register the new bounds explicitly, rebuild, and record what came out."""
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    info = H.report["combat"].setdefault("navigation", {})
+    try:
+        nav_sys = unreal.NavigationSystemV1.get_navigation_system(world)
+        if nav is not None:
+            nav_sys.on_navigation_bounds_updated(nav)
+        info["bounds_registered"] = nav is not None
+    except Exception as exc:
+        info["bounds_error"] = f"{type(exc).__name__}: {exc}"
     try:
         unreal.SystemLibrary.execute_console_command(world, "RebuildNavigation")
     except Exception as exc:
         H.warn(f"could not start the nav mesh build: {exc}")
-    return build_game_mode()
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    navmeshes = [a for a in eas.get_all_level_actors() if "RecastNavMesh" in a.get_class().get_name()]
+    info["navmesh_actors"] = len(navmeshes)
+    if not navmeshes:
+        H.warn("no nav mesh in the level after the build; one will be built when Play starts")

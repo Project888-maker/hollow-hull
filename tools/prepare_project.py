@@ -90,6 +90,30 @@ def set_navigation(project_dir):
     print("[HH] nav mesh -> built at runtime (Dynamic)")
 
 
+# Lumen and virtual shadow maps are far too heavy for integrated graphics: with the
+# Paragon heroes on screen single frames took 0.4 s, which made every fight stutter.
+# The ship is lit by its own lamps, so plain dynamic lighting looks nearly the same.
+RENDERER = {
+    "r.DynamicGlobalIlluminationMethod": "0",  # no Lumen GI
+    "r.ReflectionMethod": "2",                  # screen-space reflections instead of Lumen
+    "r.Shadow.Virtual.Enable": "0",             # regular shadow maps
+    "r.GenerateMeshDistanceFields": "False",    # only Lumen needed them
+}
+# Engine scalability "Medium" for the editor viewport and Play (0 low .. 3 epic)
+SCALABILITY = {f"sg.{k}": v for k, v in {
+    "ResolutionQuality": "100", "ViewDistanceQuality": "1", "AntiAliasingQuality": "1", "ShadowQuality": "1",
+    "GlobalIlluminationQuality": "1", "ReflectionQuality": "1", "PostProcessQuality": "1", "TextureQuality": "2",
+    "EffectsQuality": "1", "FoliageQuality": "1", "ShadingQuality": "1", "LandscapeQuality": "1"}.items()}
+
+
+def set_performance(project_dir):
+    set_ini_keys(os.path.join(project_dir, "Config", "DefaultEngine.ini"), "[/Script/Engine.RendererSettings]", RENDERER)
+    saved = os.path.join(project_dir, "Saved", "Config", "WindowsEditor")
+    for name in ("EditorSettings.ini", "GameUserSettings.ini"):
+        set_ini_keys(os.path.join(saved, name), "[ScalabilityGroups]", SCALABILITY)
+    print("[HH] performance -> no Lumen / virtual shadows, scalability Medium")
+
+
 def set_texture_budget(project_dir):
     # the Paragon heroes overflow the default texture pool on integrated graphics
     # ("TEXTURE STREAMING POOL OVER ... BUDGET", blurry textures)
@@ -119,6 +143,7 @@ def main(argv):
     set_startup_map(project_dir)
     set_navigation(project_dir)
     set_texture_budget(project_dir)
+    set_performance(project_dir)
     install_startup_hook(project_dir, args.repo)
     print(f"[HH] project ready: {os.path.abspath(args.existing)}")
 
