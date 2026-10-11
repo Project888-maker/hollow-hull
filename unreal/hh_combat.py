@@ -1532,15 +1532,125 @@ def _component_templates(bp):
 
 
 AI_CONTROLLER_BP = COMBAT + "/Blueprints/AI/BP_CombatAIController"
+ENEMY_STATE_TREE = COMBAT + "/Blueprints/AI/ST_CombatEnemy"
 # Epic's enemy only swings when the player's centre is within TargetMeleeDistance (100 cm)
 # of its own, measured in 3D. Grux and Sevarog are wider and taller than that allows (bodies
-# touching is 115-120 cm away), so they walked up, stopped, and walked up again forever.
+# touching is 109-120 cm away), so they walked up, stopped, and walked up again forever.
 MELEE_REACH_CM = 150.0
+_REACH_RE = re.compile(r"TargetMeleeDistance=([-0-9.]+)")
+# the StateTree's floating "Idling / Flanking / Attacking" labels over each enemy
+_DEBUG_TEXT_ON = re.compile(r"(StateTreeDebugTextTask\(.*?(?<![A-Za-z])bEnabled=)True")
+
+
+def _retext(owner, prop, edit):
+    """Python can only reach a StateTree parameter set or task list as text: export the
+    property owner.prop, rewrite it with edit(text) -> (text, changes), import it back.
+    Returns the number of changes."""
+    value = owner.get_editor_property(prop)
+    is_array = isinstance(value, (list, tuple, unreal.Array))
+    items = list(value) if is_array else [value]
+    total = 0
+    for item in items:  # an array (a state's tasks) is rewritten one element at a time
+        text, n = edit(item.export_text())
+        if n:
+            item.import_text(text)
+            total += n
+    if total:
+        owner.set_editor_property(prop, items if is_array else value)
+    return total
+
+
+def _set_reach(text):
+    return _REACH_RE.subn(f"TargetMeleeDistance={MELEE_REACH_CM:.6f}", text)
+
+
+def _state_tree_states(editor_data, limit=200):
+    """The StateTree's states, found by their object names (the lists holding them are not
+    visible to Python): StateTreeState_<n> nested under the editor data."""
+    found, todo = [], [editor_data.get_path_name()]
+    while todo and len(found) < limit:
+        parent = todo.pop()
+        misses = 0
+        for i in range(64):
+            obj = unreal.find_object(None, f"{parent}.StateTreeState_{i}")
+            if obj is None:
+                misses += 1
+                if misses > 4:
+                    break
+                continue
+            found.append(obj)
+            todo.append(obj.get_path_name())
+    return found
+
+
+def tune_enemy_state_tree(info):
+    """In Epic's enemy StateTree itself: the melee distance (the value every enemy's AI
+    starts from) and the floating state labels off. Saving the asset recompiles it."""
+    out = info.setdefault("state_tree", {})
+    st = unreal.load_asset(ENEMY_STATE_TREE)
+    if st is None:
+        out["error"] = "no enemy StateTree"
+        return
+    ed = unreal.find_object(None, st.get_path_name() + ":StateTreeEditorData_0")
+    if ed is None:
+        try:
+            ed = st.get_editor_property("editor_data")
+        except Exception as exc:
+            out["error"] = f"no editor data: {type(exc).__name__}: {exc}"[:300]
+            return
+    for prop in ("root_parameters", "root_parameter_property_bag"):
+        try:
+            if prop == "root_parameters":
+                rp = ed.get_editor_property(prop)
+                n = _retext(rp, "parameters", _set_reach)
+                if n:
+                    ed.set_editor_property(prop, rp)
+            else:
+                n = _retext(ed, prop, _set_reach)
+            out[prop] = f"set to {MELEE_REACH_CM}" if n else "no TargetMeleeDistance"
+        except Exception as exc:
+            out[prop] = f"{type(exc).__name__}: {exc}"[:200]
+    labels, errors = 0, []
+    states = _state_tree_states(ed)
+    for state in states:
+        try:
+            labels += _retext(state, "tasks", lambda t: _DEBUG_TEXT_ON.subn(r"\1False", t))
+        except Exception as exc:
+            errors.append(f"{type(exc).__name__}: {exc}"[:160])
+    out["states"] = len(states)
+    out["labels_off"] = labels
+    if errors:
+        out["label_errors"] = errors[:3]
+    try:
+        sub = unreal.get_editor_subsystem(unreal.StateTreeEditingSubsystem)
+        compile_fn = next((getattr(sub, n) for n in ("compile_state_tree", "validate_and_compile")
+                           if hasattr(sub, n)), None)
+        if compile_fn is not None:
+            compile_fn(st)
+            out["compiled"] = True
+    except Exception as exc:
+        out["compile"] = f"{type(exc).__name__}: {exc}"[:200]
+    st.modify()
+    H.eal.save_loaded_asset(st, only_if_is_dirty=False)
+    try:
+        after = ed.get_editor_property("root_parameters").get_editor_property("parameters").export_text()
+        got = _REACH_RE.search(after)
+        info["melee_reach_cm"] = float(got.group(1)) if got else after[:200]
+    except Exception as exc:
+        out["readback"] = f"{type(exc).__name__}: {exc}"[:200]
 
 
 def widen_melee_reach(info):
-    """Raise the StateTree's TargetMeleeDistance for every enemy. The value lives in the AI
-    controller's StateTree component, as a parameter set that Python can only edit as text."""
+    """Raise TargetMeleeDistance for every enemy: in the StateTree (its default), and in the
+    AI controller's StateTree component, which keeps its own copy of the parameters.
+    Last run only the component's copy changed, and in Play the enemies still used 100."""
+    try:
+        tune_enemy_state_tree(info)
+    except Exception as exc:
+        info.setdefault("state_tree", {})["error"] = f"{type(exc).__name__}: {exc}"[:300]
+    if "melee_reach_cm" not in info:
+        st = info.get("state_tree", {})
+        info["melee_reach_cm"] = st.get("error") or st.get("readback") or st.get("root_parameters") or "not set"
     try:
         bp = unreal.load_asset(AI_CONTROLLER_BP)
         sds, comps = _component_templates(bp)
@@ -1548,21 +1658,16 @@ def widen_melee_reach(info):
         if comp is None:
             raise RuntimeError("the AI controller has no StateTree component")
         ref = comp.get_editor_property("state_tree_ref")
-        params = ref.get_editor_property("parameters")
-        text = params.export_text()
-        new, n = re.subn(r"TargetMeleeDistance=[-0-9.]+", f"TargetMeleeDistance={MELEE_REACH_CM:.6f}", text)
-        if not n:
-            raise RuntimeError(f"no TargetMeleeDistance in {text[:200]}")
-        params.import_text(new)
-        ref.set_editor_property("parameters", params)
+        if not _retext(ref, "parameters", _set_reach):
+            raise RuntimeError("no TargetMeleeDistance in the component's parameters")
         comp.set_editor_property("state_tree_ref", ref)
         unreal.BlueprintEditorLibrary.compile_blueprint(bp)
         H.eal.save_loaded_asset(bp, only_if_is_dirty=False)
         after = comp.get_editor_property("state_tree_ref").get_editor_property("parameters").export_text()
-        got = re.search(r"TargetMeleeDistance=([-0-9.]+)", after)
-        info["melee_reach_cm"] = float(got.group(1)) if got else after[:200]
+        got = _REACH_RE.search(after)
+        info["melee_reach_controller_cm"] = float(got.group(1)) if got else after[:200]
     except Exception as exc:
-        info["melee_reach_cm"] = f"{type(exc).__name__}: {exc}"[:300]
+        info["melee_reach_controller_cm"] = f"{type(exc).__name__}: {exc}"[:300]
 
 
 # Where the player's health bar sits, from the camera: 1 m ahead, left and down, i.e. the
@@ -1592,7 +1697,7 @@ def move_life_bars(info):
                 if not sds.attach_subobject(cam, bar[0]):
                     raise RuntimeError("could not attach the bar to the camera")
                 w = bar[1]
-                w.set_editor_property("widget_space", unreal.WidgetSpace.SCREEN)
+                w.set_editor_property("space", unreal.WidgetSpace.SCREEN)
                 w.set_editor_property("relative_location", unreal.Vector(*HUD_BAR_FROM_CAMERA))
                 w.set_editor_property("relative_rotation", unreal.Rotator(0.0, 0.0, 0.0))
                 out[kind] = "lower left of the screen"

@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11y (enemies stand on the floor; Grux and Sevarog attack; health bar in the screen corner)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11z (Grux and Sevarog reach changed in the AI itself; health bar in the corner; no AI labels)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -442,6 +442,9 @@ if ($r.PSObject.Properties["combat"]) {
     $reach = $r.combat.melee_reach_cm
     if ($reach -is [double] -or $reach -is [int] -or $reach -is [decimal]) { Say "  enemies swing from up to $reach cm away" "Green" }
     elseif ($reach) { Say "  could not widen the enemies' reach: $reach" "Yellow" }
+    $st = $r.combat.state_tree
+    if ($st -and $st.labels_off -gt 0) { Say "  AI state labels over enemies switched off ($($st.labels_off))" "Green" }
+    elseif ($st) { Say "  AI state labels over enemies still on (see combat.state_tree in setup_report.json)" "Yellow" }
     if ($r.combat.life_bars) {
         $bars = $r.combat.life_bars
         if ($bars.player -like "lower left*") { Say "  your health bar is in the lower left of the screen" "Green" }
