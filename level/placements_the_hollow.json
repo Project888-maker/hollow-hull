@@ -1,0 +1,4263 @@
+{
+ "music": "music_hollow",
+ "look": {
+  "fog_density": 0.06,
+  "fog_color": [
+   0.006,
+   0.014,
+   0.01
+  ],
+  "fog_scattering": 0.6,
+  "vignette": 0.9,
+  "film_grain": 0.45,
+  "chromatic_aberration": 0.8,
+  "exposure_min_ev": 0.0,
+  "exposure_max_ev": 2.5,
+  "tint": [
+   0.85,
+   1.0,
+   0.88
+  ]
+ },
+ "level": "L_TheHollow",
+ "meshes": [
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 0,
+   "y": 0,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 0,
+   "y": 0,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 0,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 0,
+   "y": 400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 0,
+   "y": 400,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 0,
+   "y": 800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 0,
+   "y": 800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 0,
+   "y": 800,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 400,
+   "y": 0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 400,
+   "y": 0,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 400,
+   "y": 0,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 400,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 400,
+   "y": 400,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 400,
+   "y": 800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 400,
+   "y": 800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 400,
+   "y": 800,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 800,
+   "y": 0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 800,
+   "y": 0,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 800,
+   "y": 0,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 800,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 800,
+   "y": 400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 800,
+   "y": 400,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 800,
+   "y": 800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 800,
+   "y": 800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 800,
+   "y": 800,
+   "z": 25,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 1200,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 1200,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 1600,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 1600,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 2000,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2000,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 2400,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2400,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2400,
+   "y": 1600,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2400,
+   "y": 1600,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2400,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2400,
+   "y": 2000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2400,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2400,
+   "y": 2400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 2800,
+   "y": 400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 2800,
+   "y": 800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 800,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 2800,
+   "y": 1200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 1200,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2800,
+   "y": 1600,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 1600,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2800,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 2000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 2800,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 2800,
+   "y": 2400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 3200,
+   "y": 1600,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 3200,
+   "y": 1600,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 3200,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 3200,
+   "y": 2000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Bone",
+   "x": 3200,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 3200,
+   "y": 2400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 3600,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 3600,
+   "y": 2000,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 3600,
+   "y": 2000,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 3600,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 3600,
+   "y": 2400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 3600,
+   "y": 2400,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 2000,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4000,
+   "y": 2000,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 2400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4000,
+   "y": 2400,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 4000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 4000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 4400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 4400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 4800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 4800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4000,
+   "y": 5200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4000,
+   "y": 5200,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 2000,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4400,
+   "y": 2000,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 2400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4400,
+   "y": 2400,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 4000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 4000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 4400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 4400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 4800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 4800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4400,
+   "y": 5200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4400,
+   "y": 5200,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 2000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 2000,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4800,
+   "y": 2000,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 2400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 2400,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Water_Tile",
+   "x": 4800,
+   "y": 2400,
+   "z": 85,
+   "yaw": 0,
+   "collision": false,
+   "tag": "water"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 2800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 2800,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 3200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 3200,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 3600,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 3600,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 4000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 4000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 4400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 4400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 4800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 4800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 4800,
+   "y": 5200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 4800,
+   "y": 5200,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 5200,
+   "y": 4000,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 5200,
+   "y": 4000,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 5200,
+   "y": 4400,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 5200,
+   "y": 4400,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 5200,
+   "y": 4800,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 5200,
+   "y": 4800,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Floor_Flesh",
+   "x": 5200,
+   "y": 5200,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "floor"
+  },
+  {
+   "mesh": "SM_Ceiling_Flesh",
+   "x": 5200,
+   "y": 5200,
+   "z": 600,
+   "yaw": 0,
+   "collision": true,
+   "tag": "ceiling"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 0,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 0,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 0,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 400,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 400,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 400,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 400,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 800,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 800,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 800,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 800,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1200,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1200,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1600,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1600,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2000,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2000,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2400,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2800,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Arch_Rib",
+   "x": 2800,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "door"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2800,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2800,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2800,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3200,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3200,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3200,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3200,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3600,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3600,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4000,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4400,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4800,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Arch_Rib",
+   "x": 4800,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "door"
+  },
+  {
+   "mesh": "SM_Arch_Rib",
+   "x": 4800,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "door"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 4800,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4800,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 4800,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5200,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5200,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5200,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5200,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 0,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 0,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": -200.0,
+   "y": 800,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1000.0,
+   "y": 0,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1000.0,
+   "y": 0,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Arch_Rib",
+   "x": 1000.0,
+   "y": 400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "door"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1000.0,
+   "y": 400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1000.0,
+   "y": 800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 1000.0,
+   "y": 800,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 1600,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 1600,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 2000,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 2000,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 2400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2200.0,
+   "y": 2400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2600.0,
+   "y": 800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 2600.0,
+   "y": 1200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3000.0,
+   "y": 400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3000.0,
+   "y": 800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3000.0,
+   "y": 1200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3400.0,
+   "y": 1600,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3400.0,
+   "y": 1600,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Arch_Rib",
+   "x": 3400.0,
+   "y": 2000,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "door"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3400.0,
+   "y": 2000,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3400.0,
+   "y": 2400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3400.0,
+   "y": 2400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4000,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4000,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 4800,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 5200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 3800.0,
+   "y": 5200,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 4600.0,
+   "y": 2800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 4600.0,
+   "y": 3200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 4600.0,
+   "y": 3600,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5000.0,
+   "y": 2000,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5000.0,
+   "y": 2400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 5000.0,
+   "y": 2800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 5000.0,
+   "y": 3200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Membrane",
+   "x": 5000.0,
+   "y": 3600,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall",
+   "fx": "pulse"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4000,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4000,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4400,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4400,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4800,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 4800,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 5200,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Wall_Rib",
+   "x": 5400.0,
+   "y": 5200,
+   "z": 300,
+   "yaw": 90,
+   "collision": true,
+   "tag": "wall"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": -200.0,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 200.0,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 200.0,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 200.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 200.0,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 600.0,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 600.0,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 600.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 600.0,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": -200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": -200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1000.0,
+   "y": 1000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1400.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1400.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1800.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 1800.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 1800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 2200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 2200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2200.0,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 2600.0,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 1000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3000.0,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 1400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 1400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 1800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 2200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 2200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3400.0,
+   "y": 2600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 4200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 4200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 4600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 4600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 5000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 5000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 3800.0,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4200.0,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 3000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 3400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 4600.0,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 1800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 2200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 2600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 3000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 3400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5000.0,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 3800.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 3800.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 4200.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 4200.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 4600.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 4600.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 5000.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 5000.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 5400.0,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Vertebra",
+   "x": 5400.0,
+   "y": 5400.0,
+   "z": 300,
+   "yaw": 0,
+   "collision": true,
+   "tag": "pillar"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": -145.0,
+   "y": -18.0,
+   "z": 13,
+   "yaw": 343.8,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": -145.0,
+   "y": 906.5,
+   "z": 13,
+   "yaw": 36.36,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 499.8,
+   "y": 440.4,
+   "z": 13,
+   "yaw": 17.64,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 945.0,
+   "y": 10.6,
+   "z": 13,
+   "yaw": 256.68,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 759.1,
+   "y": 945.0,
+   "z": 13,
+   "yaw": 34.2,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 1208.4,
+   "y": 255.0,
+   "z": 0,
+   "yaw": 145.08,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 1988.6,
+   "y": 545.0,
+   "z": 0,
+   "yaw": 1.8,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 2255.0,
+   "y": 1499.7,
+   "z": 0,
+   "yaw": 239.4,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 2255.0,
+   "y": 2500.8,
+   "z": 0,
+   "yaw": 316.44,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 2828.6,
+   "y": 255.0,
+   "z": 0,
+   "yaw": 192.60000000000002,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 2655.0,
+   "y": 1236.1,
+   "z": 0,
+   "yaw": 304.2,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 2857.8,
+   "y": 2083.2,
+   "z": 0,
+   "yaw": 300.59999999999997,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 3345.0,
+   "y": 1536.2,
+   "z": 0,
+   "yaw": 316.44,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 3345.0,
+   "y": 2419.4,
+   "z": 0,
+   "yaw": 55.08,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 3505.8,
+   "y": 1855.0,
+   "z": 73,
+   "yaw": 258.12,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 3989.9,
+   "y": 2545.0,
+   "z": 73,
+   "yaw": 343.8,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 3855.0,
+   "y": 3961.7,
+   "z": 0,
+   "yaw": 255.95999999999998,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 3855.0,
+   "y": 4700.6,
+   "z": 0,
+   "yaw": 324.36,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 4335.3,
+   "y": 1855.0,
+   "z": 73,
+   "yaw": 227.16,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 4378.2,
+   "y": 4474.0,
+   "z": 0,
+   "yaw": 129.96,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 4334.4,
+   "y": 5345.0,
+   "z": 0,
+   "yaw": 155.16,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Green",
+   "x": 4945.0,
+   "y": 2451.9,
+   "z": 73,
+   "yaw": 289.8,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 4655.0,
+   "y": 3094.8,
+   "z": 0,
+   "yaw": 247.32000000000002,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 4808.6,
+   "y": 4005.2,
+   "z": 0,
+   "yaw": 158.76,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 4824.2,
+   "y": 4716.8,
+   "z": 0,
+   "yaw": 55.8,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 5345.0,
+   "y": 4371.4,
+   "z": 0,
+   "yaw": 227.16,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Pustules_Red",
+   "x": 5124.3,
+   "y": 5345.0,
+   "z": 0,
+   "yaw": 314.28,
+   "collision": false,
+   "tag": "glow"
+  },
+  {
+   "mesh": "SM_Floor_Grate",
+   "x": 40,
+   "y": 30,
+   "z": 120,
+   "yaw": 20,
+   "collision": true,
+   "tag": "prop",
+   "pitch": 35,
+   "roll": 0
+  },
+  {
+   "mesh": "SM_Crate",
+   "x": -60,
+   "y": 840,
+   "z": 0,
+   "yaw": 35,
+   "collision": true,
+   "tag": "prop",
+   "pitch": 0,
+   "roll": 18
+  },
+  {
+   "mesh": "SM_Crate",
+   "x": 500,
+   "y": 860,
+   "z": 0,
+   "yaw": 340,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Barrel",
+   "x": 320,
+   "y": 760,
+   "z": 30,
+   "yaw": 70,
+   "collision": true,
+   "tag": "prop",
+   "pitch": 0,
+   "roll": 90
+  },
+  {
+   "mesh": "SM_Pipe_Straight",
+   "x": -20,
+   "y": 440,
+   "z": 160,
+   "yaw": 80,
+   "collision": false,
+   "tag": "prop",
+   "pitch": -30,
+   "roll": 0
+  },
+  {
+   "mesh": "SM_Lamp_Cage",
+   "x": 260,
+   "y": 250,
+   "z": 590,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Growth",
+   "x": 80,
+   "y": 710,
+   "z": 10,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 800,
+   "y": 0,
+   "z": 600,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": -40,
+   "y": 340,
+   "z": 600,
+   "yaw": 140,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 1600,
+   "y": 400,
+   "z": 300,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 2460,
+   "y": 440,
+   "z": 300,
+   "yaw": 200,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 2080,
+   "y": 510,
+   "z": 0,
+   "yaw": 40,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 2800,
+   "y": 1140,
+   "z": 300,
+   "yaw": 90,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 2320,
+   "y": 1520,
+   "z": 0,
+   "yaw": 0,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 3280,
+   "y": 1520,
+   "z": 0,
+   "yaw": 90,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 2320,
+   "y": 2480,
+   "z": 0,
+   "yaw": 180,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 3280,
+   "y": 2480,
+   "z": 0,
+   "yaw": 270,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 2800,
+   "y": 2040,
+   "z": 0,
+   "yaw": 30,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Harpoon",
+   "x": 2870,
+   "y": 2100,
+   "z": 0,
+   "yaw": 100,
+   "collision": false,
+   "tag": "prop",
+   "pitch": -25,
+   "roll": 0
+  },
+  {
+   "mesh": "SM_Lamp_Cage",
+   "x": 2710,
+   "y": 1940,
+   "z": 57,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Crate",
+   "x": 2300,
+   "y": 2040,
+   "z": 0,
+   "yaw": 25,
+   "collision": true,
+   "tag": "prop",
+   "pitch": 0,
+   "roll": 12
+  },
+  {
+   "mesh": "SM_Barrel",
+   "x": 3320,
+   "y": 2060,
+   "z": 0,
+   "yaw": 10,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 2800,
+   "y": 2000,
+   "z": 600,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 2460,
+   "y": 1660,
+   "z": 600,
+   "yaw": 60,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 3140,
+   "y": 2340,
+   "z": 600,
+   "yaw": 250,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 4000,
+   "y": 1890,
+   "z": 0,
+   "yaw": 50,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 4460,
+   "y": 2500,
+   "z": 0,
+   "yaw": 200,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 3600,
+   "y": 2400,
+   "z": 300,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4060,
+   "y": 2060,
+   "z": 300,
+   "yaw": 120,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4360,
+   "y": 2340,
+   "z": 300,
+   "yaw": 220,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4800,
+   "y": 2040,
+   "z": 300,
+   "yaw": 310,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4740,
+   "y": 2800,
+   "z": 300,
+   "yaw": 30,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4860,
+   "y": 3200,
+   "z": 300,
+   "yaw": 160,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4760,
+   "y": 3640,
+   "z": 300,
+   "yaw": 280,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Heart",
+   "x": 4600,
+   "y": 4600,
+   "z": 600,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop",
+   "fx": "heart"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4040,
+   "y": 4040,
+   "z": 600,
+   "yaw": 0,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 5160,
+   "y": 4040,
+   "z": 600,
+   "yaw": 90,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 4040,
+   "y": 5160,
+   "z": 600,
+   "yaw": 180,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Tendrils",
+   "x": 5160,
+   "y": 5160,
+   "z": 600,
+   "yaw": 270,
+   "collision": false,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 3910,
+   "y": 5290,
+   "z": 0,
+   "yaw": 15,
+   "collision": true,
+   "tag": "prop"
+  },
+  {
+   "mesh": "SM_Bone_Pile",
+   "x": 5300,
+   "y": 4840,
+   "z": 0,
+   "yaw": 160,
+   "collision": true,
+   "tag": "prop"
+  }
+ ],
+ "lights": [
+  {
+   "x": -85.0,
+   "y": -18.039999999999992,
+   "z": 83,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 14,
+   "radius_cm": 800,
+   "zone": "drop",
+   "shadows": true
+  },
+  {
+   "x": -85.0,
+   "y": 906.48,
+   "z": 83,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 14,
+   "radius_cm": 800,
+   "zone": "drop",
+   "shadows": true
+  },
+  {
+   "x": 499.8,
+   "y": 440.4,
+   "z": 83,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 14,
+   "radius_cm": 800,
+   "zone": "drop",
+   "shadows": true
+  },
+  {
+   "x": 885.0,
+   "y": 10.560000000000002,
+   "z": 83,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 14,
+   "radius_cm": 800,
+   "zone": "drop",
+   "shadows": true
+  },
+  {
+   "x": 759.08,
+   "y": 885.0,
+   "z": 83,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 14,
+   "radius_cm": 800,
+   "zone": "drop",
+   "shadows": true
+  },
+  {
+   "x": 1208.36,
+   "y": 315.0,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 9,
+   "radius_cm": 650,
+   "zone": "rib_tunnel",
+   "shadows": false
+  },
+  {
+   "x": 1988.56,
+   "y": 485.0,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 9,
+   "radius_cm": 650,
+   "zone": "rib_tunnel",
+   "shadows": false
+  },
+  {
+   "x": 2315.0,
+   "y": 1499.68,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 700,
+   "zone": "ossuary",
+   "shadows": true
+  },
+  {
+   "x": 2315.0,
+   "y": 2500.76,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 700,
+   "zone": "ossuary",
+   "shadows": true
+  },
+  {
+   "x": 2828.6,
+   "y": 315.0,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 9,
+   "radius_cm": 650,
+   "zone": "rib_tunnel",
+   "shadows": false
+  },
+  {
+   "x": 2715.0,
+   "y": 1236.08,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 9,
+   "radius_cm": 650,
+   "zone": "rib_tunnel",
+   "shadows": false
+  },
+  {
+   "x": 2857.8,
+   "y": 2083.2,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 700,
+   "zone": "ossuary",
+   "shadows": true
+  },
+  {
+   "x": 3285.0,
+   "y": 1536.2,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 700,
+   "zone": "ossuary",
+   "shadows": true
+  },
+  {
+   "x": 3285.0,
+   "y": 2419.36,
+   "z": 70,
+   "color": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 700,
+   "zone": "ossuary",
+   "shadows": true
+  },
+  {
+   "x": 3505.84,
+   "y": 1915.0,
+   "z": 143,
+   "color": [
+    0.25,
+    0.85,
+    0.5
+   ],
+   "intensity_cd": 8,
+   "radius_cm": 700,
+   "zone": "drowned_gallery",
+   "shadows": false
+  },
+  {
+   "x": 3989.88,
+   "y": 2485.0,
+   "z": 143,
+   "color": [
+    0.25,
+    0.85,
+    0.5
+   ],
+   "intensity_cd": 8,
+   "radius_cm": 700,
+   "zone": "drowned_gallery",
+   "shadows": false
+  },
+  {
+   "x": 3915.0,
+   "y": 3961.72,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 3915.0,
+   "y": 4700.56,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 4335.32,
+   "y": 1915.0,
+   "z": 143,
+   "color": [
+    0.25,
+    0.85,
+    0.5
+   ],
+   "intensity_cd": 8,
+   "radius_cm": 700,
+   "zone": "drowned_gallery",
+   "shadows": false
+  },
+  {
+   "x": 4378.2,
+   "y": 4474.0,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 4334.44,
+   "y": 5285.0,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 4885.0,
+   "y": 2451.92,
+   "z": 143,
+   "color": [
+    0.25,
+    0.85,
+    0.5
+   ],
+   "intensity_cd": 8,
+   "radius_cm": 700,
+   "zone": "drowned_gallery",
+   "shadows": false
+  },
+  {
+   "x": 4715.0,
+   "y": 3094.84,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 10,
+   "radius_cm": 650,
+   "zone": "throat",
+   "shadows": false,
+   "fx": "pulse"
+  },
+  {
+   "x": 4808.6,
+   "y": 4005.2,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 4824.2,
+   "y": 4716.8,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 5285.0,
+   "y": 4371.4,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 5124.32,
+   "y": 5285.0,
+   "z": 70,
+   "color": [
+    1.0,
+    0.15,
+    0.08
+   ],
+   "intensity_cd": 12,
+   "radius_cm": 750,
+   "zone": "heart",
+   "shadows": true,
+   "fx": "pulse"
+  },
+  {
+   "x": 260,
+   "y": 250,
+   "z": 520,
+   "color": [
+    1.0,
+    0.62,
+    0.3
+   ],
+   "intensity_cd": 40,
+   "radius_cm": 1400,
+   "zone": "drop",
+   "fx": "flicker"
+  },
+  {
+   "x": 2710,
+   "y": 1940,
+   "z": 30,
+   "color": [
+    1.0,
+    0.55,
+    0.25
+   ],
+   "intensity_cd": 6,
+   "radius_cm": 500,
+   "zone": "ossuary"
+  },
+  {
+   "x": 4600,
+   "y": 4600,
+   "z": 230,
+   "color": [
+    1.0,
+    0.1,
+    0.05
+   ],
+   "intensity_cd": 45,
+   "radius_cm": 1800,
+   "zone": "heart",
+   "fx": "pulse"
+  },
+  {
+   "x": 4600,
+   "y": 4600,
+   "z": 520,
+   "color": [
+    1.0,
+    0.12,
+    0.06
+   ],
+   "intensity_cd": 20,
+   "radius_cm": 1200,
+   "zone": "heart",
+   "fx": "pulse",
+   "shadows": false
+  }
+ ],
+ "player_start": {
+  "x": 340,
+  "y": 400,
+  "z": 170,
+  "yaw": 0
+ },
+ "enemies": [
+  {
+   "type": "Khaimera",
+   "x": 1140,
+   "y": 400,
+   "z": 120,
+   "yaw": 0,
+   "zone": "rib_tunnel",
+   "wake_box": {
+    "min": [
+     2600.0,
+     600.0,
+     0
+    ],
+    "max": [
+     3000.0,
+     1400.0,
+     300
+    ]
+   },
+   "wake_at": "the tunnel's far end"
+  },
+  {
+   "type": "Khaimera",
+   "x": 2460,
+   "y": 2340,
+   "z": 120,
+   "yaw": 300,
+   "zone": "ossuary"
+  },
+  {
+   "type": "Khaimera",
+   "x": 3140,
+   "y": 2340,
+   "z": 120,
+   "yaw": 240,
+   "zone": "ossuary"
+  },
+  {
+   "type": "Grux",
+   "x": 4000,
+   "y": 2440,
+   "z": 150,
+   "yaw": 180,
+   "zone": "drowned_gallery"
+  },
+  {
+   "type": "Sevarog",
+   "x": 4600,
+   "y": 5200,
+   "z": 170,
+   "yaw": 270,
+   "zone": "heart"
+  }
+ ],
+ "zones": {
+  "drop": {
+   "min": [
+    -200.0,
+    -200.0,
+    0
+   ],
+   "max": [
+    1000.0,
+    1000.0,
+    600
+   ]
+  },
+  "rib_tunnel": {
+   "min": [
+    1000.0,
+    200.0,
+    0
+   ],
+   "max": [
+    3000.0,
+    1400.0,
+    300
+   ]
+  },
+  "ossuary": {
+   "min": [
+    2200.0,
+    1400.0,
+    0
+   ],
+   "max": [
+    3400.0,
+    2600.0,
+    600
+   ]
+  },
+  "drowned_gallery": {
+   "min": [
+    3400.0,
+    1800.0,
+    0
+   ],
+   "max": [
+    5000.0,
+    2600.0,
+    300
+   ]
+  },
+  "throat": {
+   "min": [
+    4600.0,
+    2600.0,
+    0
+   ],
+   "max": [
+    5000.0,
+    3800.0,
+    300
+   ]
+  },
+  "heart": {
+   "min": [
+    3800.0,
+    3800.0,
+    0
+   ],
+   "max": [
+    5400.0,
+    5400.0,
+    600
+   ]
+  }
+ },
+ "bounds": {
+  "min": [
+   -400.0,
+   -400.0,
+   -50
+  ],
+  "max": [
+   5600.0,
+   5600.0,
+   650
+  ]
+ }
+}

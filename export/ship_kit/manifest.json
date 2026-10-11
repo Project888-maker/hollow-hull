@@ -111,6 +111,86 @@
       "roughness": 0.04,
       "metallic": 0.0,
       "emissive": 0.0
+    },
+    "M_Flesh_Dark": {
+      "base_color": [
+        0.035,
+        0.006,
+        0.01
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Bone": {
+      "base_color": [
+        0.36,
+        0.31,
+        0.22
+      ],
+      "roughness": 0.55,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Tooth": {
+      "base_color": [
+        0.48,
+        0.43,
+        0.3
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Membrane": {
+      "base_color": [
+        0.3,
+        0.04,
+        0.035
+      ],
+      "roughness": 0.22,
+      "metallic": 0.0,
+      "emissive": 0.2
+    },
+    "M_Vein_Glow": {
+      "base_color": [
+        0.85,
+        0.06,
+        0.03
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 0.8
+    },
+    "M_Pustule_Red": {
+      "base_color": [
+        1.0,
+        0.12,
+        0.06
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 5.0
+    },
+    "M_Heart": {
+      "base_color": [
+        0.25,
+        0.02,
+        0.03
+      ],
+      "roughness": 0.12,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Void": {
+      "base_color": [
+        0.003,
+        0.003,
+        0.003
+      ],
+      "roughness": 1.0,
+      "metallic": 0.0,
+      "emissive": 0.0
     }
   },
   "pieces": [
@@ -540,6 +620,274 @@
         2.0,
         2.0,
         0.0
+      ]
+    },
+    {
+      "name": "SM_Floor_Flesh",
+      "file": "SM_Floor_Flesh.fbx",
+      "materials": [
+        "M_Heart",
+        "M_Flesh"
+      ],
+      "collision_hulls": 1,
+      "triangles": 1256,
+      "bounds_min_m": [
+        -2.103,
+        -2.587,
+        -0.191
+      ],
+      "bounds_max_m": [
+        2.488,
+        2.038,
+        0.033
+      ]
+    },
+    {
+      "name": "SM_Floor_Bone",
+      "file": "SM_Floor_Bone.fbx",
+      "materials": [
+        "M_Flesh_Dark",
+        "M_Bone",
+        "M_Void"
+      ],
+      "collision_hulls": 1,
+      "triangles": 3252,
+      "bounds_min_m": [
+        -2.0,
+        -2.243,
+        -0.178
+      ],
+      "bounds_max_m": [
+        2.342,
+        2.22,
+        0.121
+      ]
+    },
+    {
+      "name": "SM_Ceiling_Flesh",
+      "file": "SM_Ceiling_Flesh.fbx",
+      "materials": [
+        "M_Flesh_Dark",
+        "M_Flesh",
+        "M_Flesh_Glow"
+      ],
+      "collision_hulls": 1,
+      "triangles": 1012,
+      "bounds_min_m": [
+        -2.0,
+        -2.0,
+        -0.585
+      ],
+      "bounds_max_m": [
+        2.0,
+        2.0,
+        0.284
+      ]
+    },
+    {
+      "name": "SM_Wall_Rib",
+      "file": "SM_Wall_Rib.fbx",
+      "materials": [
+        "M_Flesh_Dark",
+        "M_Bone",
+        "M_Vein_Glow"
+      ],
+      "collision_hulls": 1,
+      "triangles": 2304,
+      "bounds_min_m": [
+        -2.0,
+        -0.537,
+        -0.035
+      ],
+      "bounds_max_m": [
+        2.0,
+        0.537,
+        3.241
+      ]
+    },
+    {
+      "name": "SM_Wall_Membrane",
+      "file": "SM_Wall_Membrane.fbx",
+      "materials": [
+        "M_Membrane",
+        "M_Flesh",
+        "M_Vein_Glow"
+      ],
+      "collision_hulls": 1,
+      "triangles": 3176,
+      "bounds_min_m": [
+        -2.0,
+        -0.243,
+        -0.04
+      ],
+      "bounds_max_m": [
+        2.312,
+        0.243,
+        3.461
+      ]
+    },
+    {
+      "name": "SM_Arch_Rib",
+      "file": "SM_Arch_Rib.fbx",
+      "materials": [
+        "M_Flesh_Dark",
+        "M_Bone",
+        "M_Tooth"
+      ],
+      "collision_hulls": 3,
+      "triangles": 1608,
+      "bounds_min_m": [
+        -2.0,
+        -0.552,
+        -0.163
+      ],
+      "bounds_max_m": [
+        2.077,
+        0.552,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Vertebra",
+      "file": "SM_Vertebra.fbx",
+      "materials": [
+        "M_Bone",
+        "M_Flesh"
+      ],
+      "collision_hulls": 1,
+      "triangles": 448,
+      "bounds_min_m": [
+        -0.214,
+        -0.45,
+        0.02
+      ],
+      "bounds_max_m": [
+        0.214,
+        0.45,
+        3.0
+      ]
+    },
+    {
+      "name": "SM_Bone_Pile",
+      "file": "SM_Bone_Pile.fbx",
+      "materials": [
+        "M_Bone",
+        "M_Void"
+      ],
+      "collision_hulls": 1,
+      "triangles": 7880,
+      "bounds_min_m": [
+        -1.051,
+        -1.198,
+        -0.019
+      ],
+      "bounds_max_m": [
+        1.21,
+        1.141,
+        0.955
+      ]
+    },
+    {
+      "name": "SM_Pustules_Green",
+      "file": "SM_Pustules_Green.fbx",
+      "materials": [
+        "M_Flesh",
+        "M_Flesh_Glow"
+      ],
+      "collision_hulls": 0,
+      "triangles": 964,
+      "bounds_min_m": [
+        -1.161,
+        -0.859,
+        -0.189
+      ],
+      "bounds_max_m": [
+        1.206,
+        1.145,
+        0.332
+      ]
+    },
+    {
+      "name": "SM_Pustules_Red",
+      "file": "SM_Pustules_Red.fbx",
+      "materials": [
+        "M_Flesh",
+        "M_Pustule_Red"
+      ],
+      "collision_hulls": 0,
+      "triangles": 964,
+      "bounds_min_m": [
+        -1.192,
+        -0.398,
+        -0.189
+      ],
+      "bounds_max_m": [
+        1.197,
+        0.956,
+        0.341
+      ]
+    },
+    {
+      "name": "SM_Tendrils",
+      "file": "SM_Tendrils.fbx",
+      "materials": [
+        "M_Flesh",
+        "M_Flesh_Glow"
+      ],
+      "collision_hulls": 0,
+      "triangles": 1072,
+      "bounds_min_m": [
+        -1.175,
+        -0.988,
+        -2.229
+      ],
+      "bounds_max_m": [
+        0.765,
+        1.125,
+        0.02
+      ]
+    },
+    {
+      "name": "SM_Heart",
+      "file": "SM_Heart.fbx",
+      "materials": [
+        "M_Heart",
+        "M_Flesh",
+        "M_Vein_Glow",
+        "M_Pustule_Red"
+      ],
+      "collision_hulls": 0,
+      "triangles": 3656,
+      "bounds_min_m": [
+        -1.977,
+        -0.889,
+        -3.6
+      ],
+      "bounds_max_m": [
+        1.907,
+        2.025,
+        0.089
+      ]
+    },
+    {
+      "name": "SM_Harpoon",
+      "file": "SM_Harpoon.fbx",
+      "materials": [
+        "M_Wood_Wet",
+        "M_Steel_Dark",
+        "M_Fabric"
+      ],
+      "collision_hulls": 0,
+      "triangles": 86,
+      "bounds_min_m": [
+        -0.08,
+        -0.04,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.08,
+        0.04,
+        1.98
       ]
     }
   ]

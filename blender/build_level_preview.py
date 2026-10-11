@@ -53,7 +53,8 @@ def assemble(data):
         src = kit[m["mesh"]]
         obj = bpy.data.objects.new(f"{m['mesh']}_{i:04d}", src.data)
         obj.location = ue_to_blender(m["x"], m["y"], m["z"])
-        obj.rotation_euler = (0, 0, math.radians(-m["yaw"]))
+        # Unreal mirrors Y, so its pitch, roll and yaw all turn the other way in Blender
+        obj.rotation_euler = (math.radians(-m.get("roll", 0)), math.radians(m.get("pitch", 0)), math.radians(-m["yaw"]))
         level_col.objects.link(obj)
         by_tag.setdefault(m["tag"], []).append(obj)
 
@@ -66,6 +67,25 @@ def assemble(data):
         lo.location = ue_to_blender(li["x"], li["y"], li["z"])
         level_col.objects.link(lo)
     return by_tag
+
+
+# first-person shots per level: (file, eye, look-at), Unreal centimetres
+SHOTS = {
+    "L_FloodedDeck": [
+        ("view_cabin.jpg", (360, 60, 170), (1360, 60, 120)),
+        ("view_engine_room.jpg", (2400, 1450, 170), (2100, 2600, 80)),
+        ("view_engine_mezzanine.jpg", (1320, 2400, 470), (2500, 1700, 250)),
+        ("view_hold.jpg", (3600, 3880, 170), (3200, 4900, 100)),
+    ],
+    "L_TheHollow": [
+        ("hollow_drop.jpg", (340, 400, 170), (1500, 400, 140)),
+        ("hollow_rib_tunnel.jpg", (1250, 400, 170), (2800, 420, 150)),
+        ("hollow_ossuary.jpg", (2800, 1500, 170), (2800, 2400, 60)),
+        ("hollow_gallery.jpg", (3500, 2000, 180), (4800, 2400, 90)),
+        ("hollow_throat.jpg", (4800, 2650, 170), (4800, 3700, 150)),
+        ("hollow_heart.jpg", (4800, 4100, 170), (4600, 4700, 330)),
+    ],
+}
 
 
 def make_camera(name, loc, target, lens=18, ortho_scale=None):
@@ -124,13 +144,8 @@ def main():
         o.hide_render = False
     world.color = (0.004, 0.005, 0.007)
     ps = data["player_start"]
-    eye = ue_to_blender(ps["x"], ps["y"], 170)
-    shots = [
-        ("view_cabin.jpg", eye, eye + Vector((10, 0, -0.5))),
-        ("view_engine_room.jpg", ue_to_blender(2400, 1450, 170), ue_to_blender(2100, 2600, 80)),
-        ("view_engine_mezzanine.jpg", ue_to_blender(1320, 2400, 470), ue_to_blender(2500, 1700, 250)),
-        ("view_hold.jpg", ue_to_blender(3600, 3880, 170), ue_to_blender(3200, 4900, 100)),
-    ]
+    shots = SHOTS.get(data["level"]) or [("view_start.jpg", (ps["x"], ps["y"], 170), (ps["x"] + 1000, ps["y"], 120))]
+    shots = [(name, ue_to_blender(*a), ue_to_blender(*b)) for name, a, b in shots]
     for name, loc, target in shots:
         render(make_camera(name, loc, target, lens=16), os.path.join(args.out, name))
 

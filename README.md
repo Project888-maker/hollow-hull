@@ -55,17 +55,21 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 
 | Path | What it is |
 |---|---|
-| `blender/hh_kit.py` | Every kit piece, built procedurally (walls, floors, stairs, boiler, props) with `UCX_` collision |
+| `blender/hh_kit.py` | Every kit piece, built procedurally with `UCX_` collision: the ship (walls, floors, stairs, boiler, props) and The Hollow (rib walls, mouth doorways, spines, bone piles, glowing growths, the heart) |
 | `blender/build_ship_kit.py` | Exports one FBX per piece and `manifest.json` (runs headless) |
 | `blender/build_level_preview.py` | Builds the level in Blender from the placements and renders previews |
-| `level/flooded_deck.json` | **The level**: text grid map, zones, doors, stairs, props |
-| `level/layout.py` | Turns the grid map into exact placements (`placements.json`) |
-| `unreal/hh_setup.py` | Imports the kit, creates materials, builds `L_FloodedDeck` |
+| `level/flooded_deck.json` | **Level 1, the ship**: text grid map, zones, doors, stairs, props |
+| `level/the_hollow.json` | **Level 2, The Hollow**: the living cave under the ice, its glow lights, fog and look |
+| `level/layout.py` | Turns a grid map into exact placements (`placements.json`, `placements_the_hollow.json`) |
+| `unreal/hh_setup.py` | Imports the kit, creates materials, builds `L_TheHollow` and `L_FloodedDeck` |
+| `unreal/hh_audio.py` | Sound while you play: footsteps per floor, swings, hits, voices, each level's music |
+| `unreal/hh_world.py` | World events while you play: the fall into The Hollow when Sevarog dies, the beating heart, breathing in the walls |
+| `audio/make_audio.py` | Synthesises all music and sound effects into `audio/wav` |
 | `unreal/hh_combat.py` | Phase 2: retargets Epic's Combat variant onto the Paragon heroes, places the enemies and a nav mesh |
 | `unreal/hh_screenshots.py` | Captures four review shots inside Unreal |
 | `tools/prepare_project.py` | Prepares the launcher-made project: plugins, startup map, `init_unreal.py` build hook |
 | `export/ship_kit/` | Generated FBX files (committed, so Unreal works even without Blender) |
-| `preview/` | Blender renders of the kit and the level |
+| `preview/` | Blender renders of the kit and the ship (`preview/hollow/` for The Hollow) |
 | `reports/` | Codex run reports and Unreal screenshots |
 
 ## Phases

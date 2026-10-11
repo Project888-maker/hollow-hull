@@ -1,7 +1,13 @@
-"""Turn a grid map (flooded_deck.json) into exact mesh/light placements.
+"""Turn a grid map (flooded_deck.json, the_hollow.json) into exact mesh/light placements.
 
 Pure Python, no Blender or Unreal needed:
     python layout.py flooded_deck.json placements.json
+    python layout.py the_hollow.json placements_the_hollow.json
+
+A zone can swap the ship's pieces for its own ("wall", "door_mesh", "ceiling",
+"pillar"; null leaves the piece out) and light itself with glowing growths
+("glow") instead of hanging lamps. Meshes and lights may carry "fx" ("pulse",
+"heart", "flicker"), which unreal/hh_world.py animates while you play.
 
 All output coordinates are Unreal units: centimetres, Z up, yaw in degrees
 (0 = +X/east, 90 = +Y/south). Both unreal/hh_setup.py and
@@ -71,13 +77,60 @@ def direction_between(a, b):
     raise ValueError(f"cells {a} and {b} are not adjacent")
 
 
+def cells_box(g, cells):
+    h = g.cell / 2
+    xs = [g.centre(c)[0] for c in cells]
+    ys = [g.centre(c)[1] for c in cells]
+    top = max(g.storeys(c) for c in cells) * g.storey
+    return {"min": [min(xs) - h, min(ys) - h, 0], "max": [max(xs) + h, max(ys) + h, top]}
+
+
+def _jitter(cell, salt, lo, hi):
+    """Deterministic 'random' number per cell, so the layout never changes between runs."""
+    v = (cell[0] * 73856093 ^ cell[1] * 19349663 ^ salt * 83492791) % 1000 / 1000.0
+    return lo + (hi - lo) * v
+
+
+def glow_light(g, cell, walls, doors, put, lights):
+    """Light a cave cell the way the plan says: no lamps, only a glowing growth low against
+    a wall (or floating on the water) and a coloured light just above it, so faces and
+    monsters are lit from below."""
+    z = g.zone(cell)
+    x, y = g.centre(cell)
+    kinds = z["glow"]
+    kind = kinds[(cell[0] * 3 + cell[1]) % len(kinds)]
+    sides = [d for d in sorted(DIRS) if g.edge(cell, d) in walls and g.edge(cell, d) not in doors]
+    reach = g.cell / 2 - 55
+    if sides:
+        d = sides[int(_jitter(cell, 1, 0, len(sides) - 0.001))]
+        dx, dy = DIRS[d]
+        along = _jitter(cell, 2, -110, 110)
+        gx, gy = x + dx * reach + dy * along, y + dy * reach + dx * along
+        inward = (-dx, -dy)
+    else:
+        gx, gy = x + _jitter(cell, 3, -100, 100), y + _jitter(cell, 4, -100, 100)
+        inward = (0, 0)
+    water = z.get("water_cm", 0)
+    gz = max(0, water - 12)
+    put(kind["mesh"], gx, gy, gz, _jitter(cell, 5, 0, 360), collision=False, tag="glow")
+    lights.append({"x": gx + inward[0] * 60, "y": gy + inward[1] * 60, "z": gz + 70, "color": kind["color"],
+                   "intensity_cd": z.get("glow_cd", 12), "radius_cm": z.get("glow_radius_cm", 700),
+                   "zone": z["id"], "shadows": z.get("glow_shadows", False),
+                   **({"fx": "pulse"} if z.get("pulse_glow") else {})})
+
+
 def build(spec):
     g = Grid(spec)
     meshes, lights = [], []
 
-    def put(mesh, x, y, z, yaw=0, collision=True, tag=""):
-        meshes.append({"mesh": mesh, "x": round(x, 1), "y": round(y, 1), "z": round(z, 1),
-                       "yaw": yaw % 360, "collision": collision, "tag": tag})
+    def put(mesh, x, y, z, yaw=0, collision=True, tag="", pitch=0, roll=0, fx=None):
+        m = {"mesh": mesh, "x": round(x, 1), "y": round(y, 1), "z": round(z, 1),
+             "yaw": yaw % 360, "collision": collision, "tag": tag}
+        if pitch or roll:
+            m["pitch"], m["roll"] = pitch, roll
+        if fx:
+            m["fx"] = fx
+        meshes.append(m)
 
     doors = set()
     for a, b in spec["doors"]:
@@ -95,11 +148,14 @@ def build(spec):
         stair_arrivals.add(g.edge(cell, s["up"]))
 
     # floors, ceilings, mezzanines, water
+    open_roof = {tuple(c) for c in spec.get("open_ceiling", [])}
     for cell, ch in sorted(g.cells.items()):
         z = g.zone(cell)
         x, y = g.centre(cell)
         put(z["floor"], x, y, 0, tag="floor")
-        put("SM_Ceiling", x, y, z["storeys"] * g.storey, tag="ceiling")
+        roof = z.get("ceiling", "SM_Ceiling")
+        if roof and cell not in open_roof:
+            put(roof, x, y, z["storeys"] * g.storey, tag="ceiling")
         if z.get("mezzanine"):
             put("SM_Floor_Grate", x, y, g.storey, tag="mezzanine")
         if z.get("water_cm"):
@@ -119,26 +175,28 @@ def build(spec):
                 continue
             walls[key] = (cell, d, other)
 
-    corners = set()
+    corners = {}
     for key, (cell, d, other) in sorted(walls.items()):
         ex, ey = g.edge_pos(key)
         yaw = 0 if key[0] == "h" else 90
         exterior = other not in g.cells
         zone = g.zone(cell)
+        wall_fx = "pulse" if zone.get("pulse_walls") and key not in doors else None
         for k in range(max(g.storeys(cell), g.storeys(other))):
             zb = k * g.storey
             if k == 0 and (key in doors or key in sealed):
-                put("SM_Wall_Door", ex, ey, zb, yaw, tag="door")
+                put(zone.get("door_mesh", "SM_Wall_Door"), ex, ey, zb, yaw, tag="door")
                 if key in sealed:
                     put("SM_Door_Bulkhead", ex, ey, zb, yaw, tag="sealed_door")
-            elif k == 0 and exterior and zone["portholes"] and (cell[0] + cell[1]) % 2:
+            elif k == 0 and exterior and zone.get("portholes") and (cell[0] + cell[1]) % 2:
                 put("SM_Wall_Porthole", ex, ey, zb, yaw, tag="wall")
             else:
-                put("SM_Wall", ex, ey, zb, yaw, tag="wall")
+                put(zone.get("wall", "SM_Wall"), ex, ey, zb, yaw, tag="wall", fx=wall_fx)
             for corner in g.edge_corners(key):
-                corners.add((corner, k))
-    for (cx, cy), k in sorted(corners):
-        put("SM_Pillar", cx, cy, k * g.storey, tag="pillar")
+                corners.setdefault((corner, k), zone.get("pillar", "SM_Pillar"))
+    for ((cx, cy), k), post in sorted(corners.items()):
+        if post:
+            put(post, cx, cy, k * g.storey, tag="pillar")
 
     # railings on mezzanine edges that overlook the open engine floor
     for cell, ch in g.cells.items():
@@ -162,6 +220,9 @@ def build(spec):
         lit_zones.add(zid)
         z = g.zone(cell)
         x, y = g.centre(cell)
+        if z.get("glow"):
+            glow_light(g, cell, walls, doors, put, lights)
+            continue
         top = g.storey if z.get("mezzanine") else z["storeys"] * g.storey
         top -= 8 if z.get("mezzanine") else 0
         put("SM_Lamp_Cage", x, y, top, collision=False, tag="lamp")
@@ -172,18 +233,36 @@ def build(spec):
     for p in spec.get("props", []):
         x, y = g.centre(tuple(p["cell"]))
         dx, dy, dz = p.get("offset", (0, 0, 0))
-        put(p["mesh"], x + dx, y + dy, dz, p.get("yaw", 0), p.get("collision", True), tag="prop")
+        put(p["mesh"], x + dx, y + dy, dz, p.get("yaw", 0), p.get("collision", True), tag="prop",
+            pitch=p.get("pitch", 0), roll=p.get("roll", 0), fx=p.get("fx"))
+
+    for li in spec.get("lights", []):
+        x, y = g.centre(tuple(li["cell"]))
+        dx, dy, dz = li.get("offset", (0, 0, 200))
+        light = {"x": x + dx, "y": y + dy, "z": dz, "color": li["color"], "intensity_cd": li["cd"],
+                 "radius_cm": li.get("radius_cm", 900), "zone": g.zone(tuple(li["cell"]))["id"]}
+        for k in ("fx", "shadows"):
+            if k in li:
+                light[k] = li[k]
+        lights.append(light)
 
     ps = spec["player_start"]
-    x, y = g.centre(tuple(ps["cell"]))
-    dx, dy, dz = ps.get("offset", (0, 0, 100))
+    sx, sy = g.centre(tuple(ps["cell"]))
+    sdx, sdy, sdz = ps.get("offset", (0, 0, 100))
+    start = {"x": sx + sdx, "y": sy + sdy, "z": sdz, "yaw": ps.get("yaw", 0)}
 
     enemies = []
     for e in spec.get("enemies", []):
         ex, ey = g.centre(tuple(e["cell"]))
         dx, dy, dz = e.get("offset", (0, 0, 120))
-        enemies.append({"type": e["type"], "x": ex + dx, "y": ey + dy, "z": dz, "yaw": e.get("yaw", 0),
-                        "zone": g.zone(tuple(e["cell"]))["id"]})
+        enemy = {"type": e["type"], "x": ex + dx, "y": ey + dy, "z": dz, "yaw": e.get("yaw", 0),
+                 "zone": g.zone(tuple(e["cell"]))["id"]}
+        if e.get("wake_cells"):
+            # woken from somewhere else: e.g. it appears behind you once you are past it
+            box = cells_box(g, [tuple(c) for c in e["wake_cells"]])
+            enemy["wake_box"] = box
+            enemy["wake_at"] = e.get("wake_name", "elsewhere")
+        enemies.append(enemy)
 
     zones = {}
     for cell in g.cells:
@@ -196,11 +275,13 @@ def build(spec):
 
     xs = [m["x"] for m in meshes]
     ys = [m["y"] for m in meshes]
+    extra = {k: spec[k] for k in ("music", "look") if k in spec}
     return {
+        **extra,
         "level": spec["level"],
         "meshes": meshes,
         "lights": lights,
-        "player_start": {"x": x + dx, "y": y + dy, "z": dz, "yaw": ps.get("yaw", 0)},
+        "player_start": start,
         "enemies": enemies,
         "zones": zones,
         "bounds": {"min": [min(xs) - 200, min(ys) - 200, -50],

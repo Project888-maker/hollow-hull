@@ -9,7 +9,8 @@ import_audio()  build time (an hh_setup stage). Imports audio/wav/*.wav (made by
 start(out)      play time (init_unreal.py starts it on every editor launch, like the
                 play recorder). Nothing happens until Play is pressed; then every frame
                 it looks at the characters and plays:
-                  - footsteps for the floor under each one (steel, wood, grate, water),
+                  - footsteps for the floor under each one (steel, wood, grate, water,
+                    and in The Hollow flesh and bone),
                     a heavier thud on landing
                   - the hero's own voice from the Paragon packs on each swing, when hurt
                     and when dying, plus a whoosh for monster swings and a gunshot for
@@ -41,6 +42,7 @@ ROOT = os.path.dirname(HERE)
 WAV_DIR = os.path.join(ROOT, "audio", "wav")
 AUDIO = "/Game/HollowHull/Audio"
 ATTENUATION = AUDIO + "/ATT_HH_World"
+FAR_ATTENUATION = AUDIO + "/ATT_HH_Far"  # The Hollow's heartbeat and groans carry much further
 
 # --- mix (safe to edit; takes effect next Play after an editor restart) -----
 
@@ -61,8 +63,10 @@ HIT_HOLD, HIT_GIVE_UP = 0.6, 3.0  # a hit's limpness shows this long; settle it 
 CUE_DIRS = {"Revenant": "/Game/ParagonRevenant/Audio/Cues"}
 CUE_DIR = "/Game/Paragon{h}/Characters/Heroes/{h}/Sounds/SoundCues"
 HERO_HEAD_CM = {"Revenant": 165, "Khaimera": 165, "Grux": 205, "Sevarog": 240}
-FLOORS = {"SM_Floor_Steel": "steel", "SM_Floor_Wood": "wood", "SM_Floor_Grate": "grate"}
-VARIANTS = {"step_steel": 4, "step_wood": 4, "step_grate": 4, "step_water": 4, "hit": 3, "gunshot": 3, "whoosh": 2}
+FLOORS = {"SM_Floor_Steel": "steel", "SM_Floor_Wood": "wood", "SM_Floor_Grate": "grate",
+          "SM_Floor_Flesh": "flesh", "SM_Floor_Bone": "bone"}
+VARIANTS = {"step_steel": 4, "step_wood": 4, "step_grate": 4, "step_water": 4, "step_flesh": 4, "step_bone": 4,
+            "hit": 3, "gunshot": 3, "whoosh": 2}
 
 
 def _level_music():
@@ -81,26 +85,26 @@ def _level_music():
 
 # --- build time -------------------------------------------------------------
 
-def _make_attenuation(asset_tools, eal):
-    att = unreal.load_asset(ATTENUATION) if eal.does_asset_exist(ATTENUATION) else None
+def _make_attenuation(asset_tools, eal, path=ATTENUATION, inner=None, falloff=None):
+    att = unreal.load_asset(path) if eal.does_asset_exist(path) else None
     if att is None:
         factory = None
         try:
             factory = unreal.SoundAttenuationFactory()
         except Exception:
             pass
-        att = asset_tools.create_asset("ATT_HH_World", AUDIO, unreal.SoundAttenuation, factory)
-    _set_falloff(att)
-    eal.save_asset(ATTENUATION, only_if_is_dirty=False)
+        att = asset_tools.create_asset(path.rsplit("/", 1)[1], AUDIO, unreal.SoundAttenuation, factory)
+    _set_falloff(att, inner, falloff)
+    eal.save_asset(path, only_if_is_dirty=False)
     return att
 
 
-def _set_falloff(att):
+def _set_falloff(att, inner=None, falloff=None):
     s = att.get_editor_property("attenuation")
     for name, value in (("attenuate", True), ("spatialize", True),
                         ("attenuation_shape", unreal.AttenuationShape.SPHERE),
-                        ("attenuation_shape_extents", unreal.Vector(FALLOFF_INNER_CM, 0, 0)),
-                        ("falloff_distance", FALLOFF_CM),
+                        ("attenuation_shape_extents", unreal.Vector(inner or FALLOFF_INNER_CM, 0, 0)),
+                        ("falloff_distance", falloff or FALLOFF_CM),
                         ("distance_algorithm", unreal.AttenuationDistanceModel.NATURAL_SOUND),
                         ("attenuate_with_lpf", True), ("lpf_radius_min", 1500.0), ("lpf_radius_max", 4000.0)):
         try:
@@ -135,6 +139,7 @@ def import_audio(report, warn, log):
     try:
         att = _make_attenuation(asset_tools, eal)
         info["falloff"] = f"full volume to {FALLOFF_INNER_CM / 100:g} m, silent by {(FALLOFF_INNER_CM + FALLOFF_CM) / 100:g} m"
+        _make_attenuation(asset_tools, eal, FAR_ATTENUATION, 800.0, 6000.0)
     except Exception as exc:
         warn(f"sound falloff not made: {exc}")
     done, problems = [], {}
@@ -148,7 +153,8 @@ def import_audio(report, warn, log):
         try:
             music = name.startswith("music_") or name == "combat_layer"
             wave.set_editor_property("looping", music)
-            if att is not None and not music:
+            # stings play flat over everything (2D); everything else fades with distance
+            if att is not None and not music and not name.startswith("sting_"):
                 wave.set_editor_property("attenuation_settings", att)
             eal.save_asset(asset_path, only_if_is_dirty=False)
             done.append(name)
@@ -233,12 +239,17 @@ def _play(label, sound, loc, volume=1.0, pitch=1.0):
         _err("play " + label, exc)
 
 
-def _load_floors():
-    """(column, row) -> [(floor z, surface)] from level/placements.json."""
+def _load_floors(level):
+    """(column, row) -> [(floor z, surface)] from the level's placements (level/placements*.json)."""
     floors = {}
     try:
-        with open(os.path.join(ROOT, "level", "placements.json"), encoding="utf-8") as f:
-            data = json.load(f)
+        data = {}
+        for path in sorted(glob.glob(os.path.join(ROOT, "level", "placements*.json"))):
+            with open(path, encoding="utf-8") as f:
+                candidate = json.load(f)
+            if candidate.get("level") == level:
+                data = candidate
+                break
         for m in data.get("meshes", []):
             kind = "water" if m["mesh"] == "SM_Water_Tile" else FLOORS.get(m["mesh"])
             if kind:
@@ -505,8 +516,9 @@ def _tick_inner():
             S["world"], S["t0"] = world, time.time()
             S["session"] = {"started": time.strftime("%Y-%m-%d %H:%M:%S"), "map": world.get_name(), "fights": 0}
             S["sessions"].append(S["session"])
-            if S["floors"] is None:
-                S["floors"] = _load_floors()
+            level = re.sub(r"^UEDPIE_\d+_", "", world.get_name())
+            if S["floors"] is None or S.get("floors_for") != level:
+                S["floors"], S["floors_for"] = _load_floors(level), level
             if S["level_music"] is None:
                 S["level_music"] = _level_music()
         t = time.time() - S["t0"]

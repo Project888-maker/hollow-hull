@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11v (monsters stay inside their bodies after hits; new water steps)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-11w (new level: The Hollow, the living cave under the ship)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -145,21 +145,27 @@ if (-not $SkipUnreal) {
     if ($Project -match "OneDrive") { Fail "Project path '$Project' is inside OneDrive. Use a path like C:\Projects\HollowHull" }
 }
 
-# --- 2. ship kit ----------------------------------------------------------
-Say "`n=== 2/5  Exporting the ship kit from Blender ==="
+# --- 2. kit -----------------------------------------------------------------
+Say "`n=== 2/5  Exporting the ship and cave kit from Blender ==="
 $kitDir = Join-Path $HH "export\ship_kit"
 $code = Invoke-Native $BlenderExe @("--background", "--factory-startup", "--python-exit-code", "1",
     "--python", (Join-Path $HH "blender\build_ship_kit.py"), "--", "--out", $kitDir)
-$fbx = @(Get-ChildItem $kitDir -Filter "*.fbx" -ErrorAction SilentlyContinue).Count
-if ($code -ne 0 -or $fbx -ne 21) { Fail "Blender kit export (exit code $code, $fbx of 21 FBX files)" }
-Say "OK: 21 FBX files" "Green"
+$kitPieces = @()
+try { $kitPieces = @((Get-Content (Join-Path $kitDir "manifest.json") -Raw | ConvertFrom-Json).pieces) } catch { }
+$missing = @($kitPieces | Where-Object { -not (Test-Path (Join-Path $kitDir $_.file)) }).Count
+if ($code -ne 0 -or $kitPieces.Count -lt 30 -or $missing -gt 0) {
+    Fail "Blender kit export (exit code $code, $($kitPieces.Count) pieces, $missing FBX files missing)"
+}
+Say "OK: $($kitPieces.Count) FBX files" "Green"
 
 # --- 3. layout ------------------------------------------------------------
 Say "`n=== 3/5  Building level placements ==="
-$code = Invoke-Native $Py @((Join-Path $HH "level\layout.py"),
-    (Join-Path $HH "level\flooded_deck.json"), (Join-Path $HH "level\placements.json"))
-if ($code -ne 0) { Fail "layout.py (exit code $code)" }
-Say "OK" "Green"
+foreach ($pair in @(@("flooded_deck.json", "placements.json"), @("the_hollow.json", "placements_the_hollow.json"))) {
+    $code = Invoke-Native $Py @((Join-Path $HH "level\layout.py"),
+        (Join-Path $HH "level\$($pair[0])"), (Join-Path $HH "level\$($pair[1])"))
+    if ($code -ne 0) { Fail "layout.py $($pair[0]) (exit code $code)" }
+}
+Say "OK: the ship and The Hollow" "Green"
 
 if ($SkipUnreal) {
     Say "`nDone (Unreal skipped)." "Green"
@@ -393,6 +399,9 @@ if ((Test-Path $ueLogCopy) -and (Select-String -Path $ueLogCopy -Pattern "Enhanc
     $problems += "the template character's input actions are broken, so the player cannot move: recreate the project in the launcher (see README)"
 }
 foreach ($w in $r.warnings) { Say "warning: $w" "Yellow" }
+$hollow = $null
+if ($r.PSObject.Properties["levels"] -and $r.levels.PSObject.Properties["L_TheHollow"]) { $hollow = $r.levels.L_TheHollow }
+if (-not $hollow -or -not $hollow.saved) { $problems += "The Hollow (L_TheHollow) was not built" }
 if ($problems.Count -gt 0) {
     Say "Build stopped at stage: $($r.stage)" "Red"
     if ($r.error) { Say "Error:`n$($r.error)" "Red" }
@@ -433,7 +442,12 @@ if ($r.PSObject.Properties["combat"]) {
     elseif ($gm) { Say "  respawn: could not dress Epic's character as Revenant (you may come back as the mannequin)" "Yellow" }
     $enemies = 0
     foreach ($k in $r.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $enemies += [int]$k.Value } }
-    Say "  enemies placed: $enemies" "White"
+    $hollowEnemies = 0
+    if ($hollow -and $hollow.spawned) {
+        foreach ($k in $hollow.spawned.PSObject.Properties) { if ($k.Name -like "Enemy_*") { $hollowEnemies += [int]$k.Value } }
+    }
+    Say "  enemies placed: $enemies on the ship, $hollowEnemies in The Hollow" "White"
+    $enemies += $hollowEnemies
     if ($r.combat.waking) {
         $asleep = @($r.combat.waking.PSObject.Properties | Where-Object { $_.Value.placed -like "asleep*" }).Count
         if ($asleep -eq $enemies) { Say "  each enemy waits in its room until you walk in" "Green" }
@@ -465,10 +479,20 @@ if ($r.audio) {
     } else { Say "Sound: nothing imported (see audio in setup_report.json)" "Yellow" }
     if ($a.problems) { Say "  some sounds had problems (see audio.problems in setup_report.json)" "Yellow" }
 }
+if ($hollow -and $hollow.spawned) {
+    $hs = $hollow.spawned
+    $meshes = 0
+    foreach ($k in $hs.PSObject.Properties) { if ($k.Name -like "SM_*") { $meshes += [int]$k.Value } }
+    Say "`n=== The Hollow (L_TheHollow) ==="
+    Say "  $meshes pieces of flesh and bone, $([int]$hs.PointLight) glowing lights" "Green"
+}
 Say "`nNow in Unreal: press Play (Alt+P). WASD to move, Space to jump."  "Cyan"
 Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine room (stairs to the mezzanine)" "Cyan"
 Say "       -> south exit under the mezzanine -> green corridor -> cargo hold." "Cyan"
 Say "Monsters: Khaimera in the crew quarters and the green corridor, Grux in the engine room, Sevarog in the cargo hold." "Cyan"
+Say "Kill Sevarog and the floor gives way: you fall into The Hollow." "Magenta"
+Say "  The Hollow: the drop -> rib tunnel -> ossuary -> drowned gallery (deep water) -> throat -> heart chamber." "Cyan"
+Say "  To go straight there: Content Browser > HollowHull > Maps > double-click L_TheHollow, then Play." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
-Say "While you play, a recorder writes reports\phase1\play_trace.json and reports\phase1\audio_trace.json - send them and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
+Say "While you play, recorders write reports\phase1\play_trace.json, audio_trace.json and world_trace.json - send them and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null

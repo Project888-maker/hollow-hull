@@ -37,6 +37,15 @@ MATERIALS = {
     "M_Flesh": ((0.12, 0.02, 0.06), 0.25, 0.00, 0.0),
     "M_Flesh_Glow": ((0.25, 0.90, 0.60), 0.30, 0.00, 4.0),
     "M_Water": ((0.02, 0.05, 0.05), 0.04, 0.00, 0.0),
+    # The Hollow: the living cave under the ship
+    "M_Flesh_Dark": ((0.035, 0.006, 0.010), 0.30, 0.00, 0.0),
+    "M_Bone": ((0.36, 0.31, 0.22), 0.55, 0.00, 0.0),
+    "M_Tooth": ((0.48, 0.43, 0.30), 0.30, 0.00, 0.0),
+    "M_Membrane": ((0.30, 0.04, 0.035), 0.22, 0.00, 0.2),
+    "M_Vein_Glow": ((0.85, 0.06, 0.03), 0.30, 0.00, 0.8),
+    "M_Pustule_Red": ((1.00, 0.12, 0.06), 0.30, 0.00, 5.0),
+    "M_Heart": ((0.25, 0.02, 0.03), 0.12, 0.00, 0.0),
+    "M_Void": ((0.003, 0.003, 0.003), 1.00, 0.00, 0.0),
 }
 
 UV_METRES_PER_TILE = 2.0
@@ -117,6 +126,41 @@ class Piece:
 
     def hull(self, points, mat):
         _hull_into(self.bm, points, self._mat(mat))
+
+    def tube(self, pts, r0, r1, mat, segments=8):
+        """One smooth tube swept through pts, its radius going from r0 to r1: ribs,
+        tendrils, veins, vessels. Rings are carried along the path without twisting, and
+        both ends are capped, so it reads as one living shape instead of jointed sticks."""
+        pts = [Vector(q) for i, q in enumerate(pts) if i == 0 or (Vector(q) - Vector(pts[i - 1])).length > 1e-4]
+        if len(pts) < 2:
+            return
+        bm, n = self.bm, len(pts)
+        normal = None
+        rings = []
+        for i, q in enumerate(pts):
+            tan = (pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]).normalized()
+            if normal is None:
+                normal = _perp(tan)
+            normal = normal - tan * normal.dot(tan)
+            if normal.length < 1e-6:
+                normal = _perp(tan)
+            normal.normalize()
+            binormal = tan.cross(normal)
+            r = max(r0 + (r1 - r0) * i / (n - 1), 0.002)
+            rings.append([bm.verts.new(q + (normal * math.cos(a) + binormal * math.sin(a)) * r)
+                          for a in (k * math.tau / segments for k in range(segments))])
+        faces = []
+        for i in range(n - 1):
+            for k in range(segments):
+                k2 = (k + 1) % segments
+                faces.append(bm.faces.new((rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k])))
+        faces.append(bm.faces.new(list(reversed(rings[0]))))
+        faces.append(bm.faces.new(rings[-1]))
+        bmesh.ops.recalc_face_normals(bm, faces=faces)
+        idx = self._mat(mat)
+        for f in faces:
+            f.material_index = idx
+            f.smooth = True
 
     # --- collision -----------------------------------------------------------
 
@@ -520,9 +564,361 @@ def water_tile():
     return p
 
 
+# ---------------------------------------------------------------------------
+# The Hollow: flesh-and-bone cave pieces (same grid rules as the ship)
+# ---------------------------------------------------------------------------
+
+def _perp(axis):
+    """A unit vector at right angles to axis."""
+    side = axis.cross(Vector((0, 0, 1)))
+    if side.length < 1e-4:
+        side = axis.cross(Vector((1, 0, 0)))
+    return side.normalized()
+
+
+def _chain(p, pts, r0, r1, mat, segments=8, joints=True):
+    """A tapering tube through pts: tendrils, veins, ribs, roots (joints: kept for callers,
+    the tube is seamless anyway)."""
+    p.tube(pts, r0, r1, mat, segments=segments)
+
+
+def _bone(p, a, b, r, mat="M_Bone"):
+    """A long bone: a shaft with a double knuckle at each end."""
+    a, b = Vector(a), Vector(b)
+    p.cyl(a, b, r, mat, segments=6)
+    for end in (a, b):
+        p.sphere(end, r * 1.3, mat, scale=(1.0, 1.0, 0.85), segments=6)
+
+
+def _skull(p, c, r, yaw, mat="M_Bone"):
+    """A skull facing yaw (radians): cranium, jaw, two dark eye holes and a nose hole."""
+    c = Vector(c)
+    f = Vector((math.cos(yaw), math.sin(yaw), 0))
+    s = Vector((-f.y, f.x, 0))
+    p.sphere(c, r, mat, scale=(1.0, 1.0, 0.92), segments=10)
+    p.sphere(c + f * r * 0.55 - Vector((0, 0, r * 0.55)), r * 0.55, mat, scale=(1.0, 1.0, 0.7), segments=8)
+    for k in (1, -1):
+        p.sphere(c + f * r * 0.82 + s * k * r * 0.36 + Vector((0, 0, r * 0.05)), r * 0.24, "M_Void", segments=8)
+    p.sphere(c + f * r * 0.9 - Vector((0, 0, r * 0.3)), r * 0.12, "M_Void", segments=6)
+
+
+def _wiggle(rng, a, b, steps, amount):
+    """Points from a to b along a smooth, random S-curve (no wander at either end)."""
+    a, b = Vector(a), Vector(b)
+    waves = [(rng.uniform(-1, 1), rng.uniform(1.0, 2.5), rng.uniform(0, math.tau)) for _ in range(3)]
+    steps = max(steps, 8)
+    pts = []
+    for k in range(steps + 1):
+        u = k / steps
+        bend = Vector([amp * math.sin(freq * math.pi * u + ph) for amp, freq, ph in waves])
+        pts.append(a.lerp(b, u) + bend * amount * math.sin(math.pi * u))
+    return pts
+
+
+def _face_veins(p, rng, y, count, z0, z1, mat="M_Vein_Glow", radius=0.014):
+    """Veins crawling up a wall face at depth y, drifting smoothly sideways, with a side
+    branch or two (both faces get the same pattern, mirrored)."""
+    for i in range(count):
+        x, drift, z = rng.uniform(-HALF + 0.3, HALF - 0.3), rng.uniform(-0.05, 0.05), z0
+        pts = []
+        while z < z1:
+            pts.append((x, y, z))
+            drift = max(-0.12, min(0.12, drift + rng.uniform(-0.04, 0.04)))
+            x = max(-HALF + 0.05, min(HALF - 0.05, x + drift))
+            z += 0.18
+        if len(pts) < 2:
+            continue
+        branches = [pts]
+        for _ in range(2):
+            j = rng.randrange(1, len(pts) - 1) if len(pts) > 3 else 0
+            bx, bz, bd = pts[j][0], pts[j][2], rng.choice((-1, 1)) * rng.uniform(0.08, 0.14)
+            twig = [(bx + bd * k, y, bz + 0.12 * k + 0.02 * k * k) for k in range(rng.randint(3, 6))]
+            branches.append(twig)
+        for k, path in enumerate(branches):
+            r = radius if k == 0 else radius * 0.6
+            for s in (1, -1):
+                p.tube([(q[0], s * q[1], q[2]) for q in path], r * 1.3, r * 0.4, mat, segments=5)
+
+
+def floor_flesh():
+    """Wet, lumpy flesh: a slab with low swellings and a few dark veins. Walkable, almost flat."""
+    p = Piece("SM_Floor_Flesh")
+    rng = random.Random(31)
+    p.box((-HALF, -HALF, -0.15), (HALF, HALF, -0.02), "M_Heart")
+    for _ in range(9):
+        r = rng.uniform(0.45, 0.95)
+        p.sphere((rng.uniform(-1.7, 1.7), rng.uniform(-1.7, 1.7), -0.08), r, "M_Heart",
+                 scale=(1, rng.uniform(0.7, 1.3), 0.12), segments=10)
+    for i in range(4):
+        a, b = (rng.uniform(-HALF, HALF), rng.uniform(-HALF, HALF), 0.0), (rng.uniform(-HALF, HALF), rng.uniform(-HALF, HALF), 0.0)
+        mat = "M_Flesh"
+        pts = [Vector((q.x, q.y, 0.0)) for q in _wiggle(rng, a, b, 5, 0.4)]
+        _chain(p, pts, 0.035, 0.015, mat, segments=5, joints=False)
+    p.collide_box((-HALF, -HALF, -0.15), (HALF, HALF, 0))
+    return p
+
+
+def floor_bone():
+    """Flesh floor strewn with half-sunk bones and a skull."""
+    p = Piece("SM_Floor_Bone")
+    rng = random.Random(37)
+    p.box((-HALF, -HALF, -0.15), (HALF, HALF, -0.02), "M_Flesh_Dark")
+    for _ in range(6):
+        p.sphere((rng.uniform(-1.7, 1.7), rng.uniform(-1.7, 1.7), -0.08), rng.uniform(0.4, 0.9), "M_Flesh_Dark",
+                 scale=(1, rng.uniform(0.7, 1.3), 0.12), segments=10)
+    for _ in range(16):
+        c = Vector((rng.uniform(-1.8, 1.8), rng.uniform(-1.8, 1.8), -0.01))
+        a = rng.uniform(0, math.tau)
+        half = rng.uniform(0.15, 0.4) * Vector((math.cos(a), math.sin(a), 0))
+        _bone(p, c - half, c + half, rng.uniform(0.022, 0.04))
+    _skull(p, (rng.uniform(-1, 1), rng.uniform(-1, 1), 0.02), 0.11, rng.uniform(0, math.tau))
+    p.collide_box((-HALF, -HALF, -0.15), (HALF, HALF, 0))
+    return p
+
+
+def ceiling_flesh():
+    """A sagging flesh roof: swellings, dripping strands and a few glowing pustules."""
+    p = Piece("SM_Ceiling_Flesh")
+    rng = random.Random(41)
+    p.box((-HALF, -HALF, 0), (HALF, HALF, 0.15), "M_Flesh_Dark", collide=True)
+    for _ in range(6):
+        p.sphere((rng.uniform(-1.6, 1.6), rng.uniform(-1.6, 1.6), 0.0), rng.uniform(0.5, 0.9), "M_Flesh_Dark",
+                 scale=(1, rng.uniform(0.7, 1.3), 0.35), segments=10)
+    for _ in range(10):
+        x, y = rng.uniform(-1.8, 1.8), rng.uniform(-1.8, 1.8)
+        p.cyl((x, y, -rng.uniform(0.25, 0.7)), (x, y, 0.0), 0.004, "M_Flesh", segments=5, radius2=0.035)
+    for _ in range(3):
+        p.sphere((rng.uniform(-1.5, 1.5), rng.uniform(-1.5, 1.5), -0.12), rng.uniform(0.04, 0.07), "M_Flesh_Glow", segments=8)
+    return p
+
+
+RIB_X = (-1.3, 0.0, 1.3)
+
+
+def _ribs(p, t, xs=RIB_X, seed=43):
+    """Huge curved ribs slanting out of both faces of a wall, like the inside of a
+    ribcage, with swollen flesh bulging between them."""
+    rng = random.Random(seed)
+    for x in xs:
+        slant = rng.uniform(0.45, 0.65)
+        bulge = rng.uniform(0.28, 0.38)
+        for s in (1, -1):
+            pts = []
+            for k in range(9):
+                u = k / 8
+                pts.append((x - slant / 2 + slant * u ** 1.4, s * (t - 0.02 + bulge * math.sin(math.pi * u) ** 0.8),
+                            0.02 + u * (STOREY - 0.08)))
+            p.tube(pts, 0.13, 0.07, "M_Bone", segments=8)
+    for _ in range(len(xs)):
+        x, z, r = rng.uniform(-1.7, 1.7), rng.uniform(0.5, 2.4), rng.uniform(0.35, 0.6)
+        for s in (1, -1):
+            p.sphere((x, s * t, z), r, "M_Flesh_Dark", scale=(1.0, 0.18, rng.uniform(0.9, 1.4)), segments=8)
+
+
+def wall_rib():
+    """A wall of flesh behind a row of huge ribs, veins glowing faintly between them."""
+    p = Piece("SM_Wall_Rib")
+    t = WALL_T / 2
+    p.box((-HALF, -t, 0), (HALF, t, STOREY), "M_Flesh_Dark")
+    _ribs(p, t)
+    _face_veins(p, random.Random(47), t + 0.005, 2, 0.1, STOREY - 0.1)
+    p.collide_box((-HALF, -t - 0.3, 0), (HALF, t + 0.3, STOREY))
+    return p
+
+
+def wall_membrane():
+    """A thin stretched membrane, lit from inside, full of veins and tendons."""
+    p = Piece("SM_Wall_Membrane")
+    rng = random.Random(53)
+    t = 0.05
+    p.box((-HALF, -t, 0), (HALF, t, STOREY), "M_Membrane")
+    for z in (0.12, STOREY - 0.12):
+        p.cyl((-HALF, 0, z), (HALF, 0, z), 0.16, "M_Flesh", segments=10)
+    for x in (-1.3, 0.2, 1.4):
+        x += rng.uniform(-0.2, 0.2)
+        for s in (1, -1):
+            pts = [(x, s * (t + 0.03 + 0.12 * math.sin(math.pi * k / 4)), 0.15 + k * (STOREY - 0.3) / 4) for k in range(5)]
+            _chain(p, pts, 0.05, 0.05, "M_Flesh", segments=6, joints=False)
+    _face_veins(p, rng, t + 0.01, 6, 0.2, STOREY - 0.2, radius=0.018)
+    p.collide_box((-HALF, -0.18, 0), (HALF, 0.18, STOREY))
+    return p
+
+
+ARCH_HW, ARCH_H = 0.85, 2.5
+
+
+def arch_rib():
+    """A doorway like a mouth: a ring of bone around the opening, lined with teeth."""
+    p = Piece("SM_Arch_Rib")
+    t = WALL_T / 2
+    hw, h = ARCH_HW, ARCH_H
+    p.box((-HALF, -t, 0), (-hw, t, STOREY), "M_Flesh_Dark")
+    p.box((hw, -t, 0), (HALF, t, STOREY), "M_Flesh_Dark")
+    p.box((-hw, -t, h), (hw, t, STOREY), "M_Flesh_Dark")
+    _ribs(p, t, xs=(-1.45,), seed=59)
+    _ribs(p, t, xs=(1.45,), seed=61)
+    # the jaw: a thick bone ring following the opening, rounded over the top
+    ring = [(-hw - 0.05, 0, 0.0), (-hw - 0.05, 0, h - 0.55)]
+    for k in range(1, 8):
+        a = math.pi - k * math.pi / 8
+        ring.append((math.cos(a) * (hw + 0.05), 0, h - 0.55 + math.sin(a) * 0.65))
+    ring += [(hw + 0.05, 0, h - 0.55), (hw + 0.05, 0, 0.0)]
+    _chain(p, ring, 0.17, 0.17, "M_Bone", segments=8)
+    rng = random.Random(67)
+    for s in (1, -1):
+        y = s * 0.09
+        for k in range(7):  # upper teeth hanging into the opening
+            a = math.pi * (k + 0.5) / 7
+            x, z = math.cos(a) * (hw - 0.08), h - 0.55 + math.sin(a) * 0.55
+            length = rng.uniform(0.18, 0.32) * (0.6 + 0.4 * math.sin(a))
+            tip = Vector((x, y, z)) - Vector((math.cos(a), 0, math.sin(a))) * length
+            p.cyl((x, y, z), tip, 0.05, "M_Tooth", segments=6, radius2=0.004)
+        for side in (1, -1):  # side teeth pointing in
+            for z in (0.5, 1.1, 1.6):
+                x = side * (hw - 0.08)
+                p.cyl((x, y, z), (x - side * rng.uniform(0.12, 0.2), y, z - 0.04), 0.04, "M_Tooth", segments=6, radius2=0.004)
+    p.collide_box((-HALF, -t - 0.3, 0), (-hw - 0.05, t + 0.3, STOREY))
+    p.collide_box((hw + 0.05, -t - 0.3, 0), (HALF, t + 0.3, STOREY))
+    p.collide_box((-hw, -t - 0.2, h + 0.05), (hw, t + 0.2, STOREY))
+    return p
+
+
+def vertebra():
+    """A spine standing where walls meet: stacked vertebrae with spurs."""
+    p = Piece("SM_Vertebra")
+    n = 7
+    step = STOREY / n
+    for i in range(n):
+        z = i * step
+        p.cyl((0, 0, z + 0.02), (0, 0, z + step * 0.72), 0.22, "M_Bone", segments=7, radius2=0.19)
+        p.cyl((0, 0, z + step * 0.72), (0, 0, z + step), 0.16, "M_Flesh", segments=7)
+        zc = z + step * 0.4
+        for s in (1, -1):
+            p.cyl((0, s * 0.17, zc), (0, s * 0.45, zc - 0.1), 0.07, "M_Bone", segments=5, radius2=0.0)
+    p.collide_box((-0.24, -0.24, 0), (0.24, 0.24, STOREY))
+    return p
+
+
+def bone_pile():
+    """A heap of bones and skulls: what is left of the crew."""
+    p = Piece("SM_Bone_Pile")
+    rng = random.Random(71)
+    for _ in range(42):
+        d, a = rng.uniform(0, 1.0) ** 0.7, rng.uniform(0, math.tau)
+        x, y = 1.1 * d * math.cos(a), 1.1 * d * math.sin(a)
+        z = 0.75 * (1 - min(d, 1.0) ** 2) + 0.03
+        b = rng.uniform(0, math.tau)
+        half = rng.uniform(0.18, 0.4) * Vector((math.cos(b), math.sin(b), rng.uniform(-0.4, 0.4)))
+        _bone(p, Vector((x, y, z)) - half, Vector((x, y, z)) + half, rng.uniform(0.03, 0.05))
+    for k in range(5):
+        a = rng.uniform(0, math.tau)
+        d = rng.uniform(0.1, 0.75)
+        _skull(p, (1.1 * d * math.cos(a), 1.1 * d * math.sin(a), 0.75 * (1 - d * d) + 0.12), rng.uniform(0.1, 0.12),
+               rng.uniform(0, math.tau))
+    p.collide_hull([(1.05 * math.cos(a), 1.05 * math.sin(a), 0) for a in (i * math.tau / 8 for i in range(8))]
+                   + [(0.4 * math.cos(a), 0.4 * math.sin(a), 0.6) for a in (i * math.tau / 6 for i in range(6))])
+    return p
+
+
+def _pustules(name, glow, seed):
+    p = Piece(name)
+    rng = random.Random(seed)
+    p.sphere((0, 0, 0.0), 0.42, "M_Flesh", scale=(1, 0.85, 0.45), segments=10)
+    for _ in range(9):
+        a, d = rng.uniform(0, math.tau), rng.uniform(0.0, 0.32)
+        r = rng.uniform(0.05, 0.12)
+        z = 0.19 * math.sqrt(max(0.0, 1 - (d / 0.42) ** 2)) + r * 0.3
+        p.sphere((d * math.cos(a), d * math.sin(a), z), r, glow, segments=8)
+    for _ in range(4):
+        a = rng.uniform(0, math.tau)
+        pts = [(0.3 * math.cos(a), 0.3 * math.sin(a), 0.03)]
+        for k in range(1, 4):
+            a += rng.uniform(-0.4, 0.4)
+            pts.append(((0.3 + 0.3 * k) * math.cos(a), (0.3 + 0.3 * k) * math.sin(a), 0.02))
+        _chain(p, pts, 0.05, 0.015, "M_Flesh", segments=5, joints=False)
+    return p
+
+
+def pustules_green():
+    return _pustules("SM_Pustules_Green", "M_Flesh_Glow", 73)
+
+
+def pustules_red():
+    return _pustules("SM_Pustules_Red", "M_Pustule_Red", 79)
+
+
+def tendrils():
+    """Roots and tendrils hanging from the roof (pivot at the roof, body below), some
+    ending in a glowing bulb."""
+    p = Piece("SM_Tendrils")
+    rng = random.Random(83)
+    for i in range(8):
+        a, d = rng.uniform(0, math.tau), rng.uniform(0.1, 1.2)
+        top = (d * math.cos(a), d * math.sin(a), 0.0)
+        length = rng.uniform(0.9, 2.4)
+        bottom = (top[0] + rng.uniform(-0.3, 0.3), top[1] + rng.uniform(-0.3, 0.3), -length)
+        pts = _wiggle(rng, top, bottom, 5, 0.15)
+        _chain(p, pts, 0.07, 0.012, "M_Flesh", segments=6, joints=False)
+        if i % 3 == 0:
+            p.sphere(pts[-1], 0.06, "M_Flesh_Glow", segments=8)
+    return p
+
+
+def heart():
+    """The heart of the thing, hanging from the roof by its vessels (pivot at the roof).
+    About 3.6 m from the roof to its tip; glowing arteries run over it."""
+    p = Piece("SM_Heart")
+    rng = random.Random(89)
+    c = Vector((0, 0, -2.25))
+    p.sphere(c, 1.0, "M_Heart", scale=(1.0, 0.85, 1.2), segments=24)
+    p.sphere((0.15, 0.0, -3.05), 0.55, "M_Heart", scale=(1.0, 0.9, 1.0), segments=12)
+    p.sphere((-0.55, 0.2, -1.4), 0.5, "M_Flesh", segments=12)
+    p.sphere((0.6, -0.15, -1.45), 0.45, "M_Flesh", segments=12)
+    # great vessels up into the roof
+    _chain(p, [(0.1, 0, -1.4), (0.25, 0, -0.85), (0.55, 0.05, -0.45), (0.6, 0.05, 0.0)], 0.3, 0.24, "M_Flesh", segments=10)
+    _chain(p, [(-0.25, 0.1, -1.3), (-0.5, 0.3, -0.7), (-0.8, 0.5, 0.0)], 0.24, 0.2, "M_Flesh", segments=10)
+    for _ in range(6):
+        a = rng.uniform(0, math.tau)
+        start = (0.5 * math.cos(a), 0.4 * math.sin(a), -1.2)
+        end = (rng.uniform(1.4, 2.6) * math.cos(a), rng.uniform(1.4, 2.6) * math.sin(a), 0.0)
+        _chain(p, _wiggle(rng, start, end, 4, 0.25), 0.13, 0.08, "M_Flesh", segments=8)
+    # coronary arteries: glowing lines wrapping down the surface
+    for k in range(7):
+        a0 = k * math.tau / 7 + rng.uniform(-0.2, 0.2)
+        pts = []
+        twist = rng.uniform(0.1, 0.5)
+        for j in range(16):
+            u = j / 15
+            b = 0.35 + u * 2.4  # polar angle from the top
+            a = a0 + twist * u + 0.12 * math.sin(u * 7 + k)
+            pts.append(c + Vector((1.02 * math.sin(b) * math.cos(a), 0.87 * math.sin(b) * math.sin(a),
+                                   1.21 * math.cos(b))))
+        p.tube(pts, 0.045, 0.012, "M_Vein_Glow", segments=6)
+    for _ in range(6):
+        a, b = rng.uniform(0, math.tau), rng.uniform(0.6, 2.4)
+        q = c + Vector((1.0 * math.sin(b) * math.cos(a), 0.85 * math.sin(b) * math.sin(a), 1.2 * math.cos(b)))
+        p.sphere(q, rng.uniform(0.07, 0.13), "M_Pustule_Red", segments=8)
+    return p
+
+
+def harpoon():
+    """A whaler's harpoon from the crew (stands along Z; tilt it when placing)."""
+    p = Piece("SM_Harpoon")
+    p.cyl((0, 0, 0), (0, 0, 1.7), 0.022, "M_Wood_Wet", segments=8)
+    p.cyl((0, 0, 1.68), (0, 0, 1.98), 0.04, "M_Steel_Dark", segments=8, radius2=0.0)
+    for s in (1, -1):
+        p.cyl((0, 0, 1.78), (s * 0.08, 0, 1.68), 0.015, "M_Steel_Dark", segments=5, radius2=0.0)
+    p.cyl((0, 0, 1.2), (0, 0, 1.4), 0.03, "M_Fabric", segments=8)
+    return p
+
+
+CAVE_KIT = [floor_flesh, floor_bone, ceiling_flesh, wall_rib, wall_membrane, arch_rib, vertebra,
+            bone_pile, pustules_green, pustules_red, tendrils, heart, harpoon]
+
+
 KIT = [
     floor_steel, floor_wood, floor_grate, ceiling,
     wall, wall_door, wall_porthole, pillar, stairs, railing,
     pipe_straight, pipe_vertical, valve_wheel, crate, barrel, bunk,
     lamp_cage, boiler, door_bulkhead, growth, water_tile,
-]
+] + CAVE_KIT

@@ -1854,7 +1854,8 @@ def spawn_gameplay(data):
         nav.set_actor_scale3d(unreal.Vector((bmax[0] - bmin[0]) / 200, (bmax[1] - bmin[1]) / 200,
                                             (bmax[2] - bmin[2] + 200) / 200))
         origin, extent = nav.get_actor_bounds(False)
-        H.report["combat"]["nav_extent"] = [round(extent.x), round(extent.y), round(extent.z)]
+        H.report["combat"].setdefault("nav_extent", {})[data.get("level", "level")] = [
+            round(extent.x), round(extent.y), round(extent.z)]
         if extent.x < 1000:
             H.warn("nav mesh volume came out too small; enemies may not move")
         H._count("NavMeshBoundsVolume")
@@ -1865,10 +1866,17 @@ def spawn_gameplay(data):
         if cls is None:
             enemy_fallback = enemy_fallback or H.eal.load_blueprint_class(ENEMY_BP)
             cls = enemy_fallback
-        where = f"{e['type']}_{e['zone']}"
+        where, n = f"{e['type']}_{e['zone']}", 2
+        while where in waking:  # two of a kind in one room
+            where, n = f"{e['type']}_{e['zone']}_{n}", n + 1
         info = waking.setdefault(where, {})
+        # the wake-up box is the enemy's room, or another box the level names (The Hollow's
+        # tunnel Khaimera waits at the tunnel mouth and wakes when you reach the far end)
+        wake = e.get("wake_box") or data.get("zones", {}).get(e["zone"])
+        if e.get("wake_box"):
+            info["wakes_when_you_reach"] = e.get("wake_at", "elsewhere")
         try:
-            asleep = place_sleeping_enemy(eas, cls, e, data.get("zones", {}).get(e["zone"]), info)
+            asleep = place_sleeping_enemy(eas, cls, e, wake, info)
         except Exception as exc:
             info["error"] = f"{type(exc).__name__}: {exc}"[:300]
             asleep = False
@@ -1884,7 +1892,7 @@ def spawn_gameplay(data):
         H._tag(actor, "enemies")
         actor.set_actor_label(f"Enemy_{where}")
         H._count(f"Enemy_{e['type']}")
-    build_navigation(nav)
+    build_navigation(nav, data.get("level", "level"))
     return build_game_mode()
 
 
@@ -1997,12 +2005,12 @@ def place_sleeping_enemy(eas, cls, e, zone, info):
     return True
 
 
-def build_navigation(nav):
+def build_navigation(nav, level):
     """Scaling the volume from Python does not tell the navigation system its bounds
     changed (the old build covered a 2 m cube, and in Play the enemies had no nav mesh),
     so register the new bounds explicitly, rebuild, and record what came out."""
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
-    info = H.report["combat"].setdefault("navigation", {})
+    info = H.report["combat"].setdefault("navigation", {}).setdefault(level, {})
     try:
         nav_sys = unreal.NavigationSystemV1.get_navigation_system(world)
         if nav is not None:

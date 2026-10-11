@@ -1,4 +1,6 @@
-"""Hollow Hull: import the ship kit and build L_FloodedDeck inside Unreal 5.7.
+"""Hollow Hull: import the kit and build the levels inside Unreal 5.7:
+L_TheHollow (the cave under the ice) first, then L_FloodedDeck (the ship), which is
+left open at the end.
 
 Normally started by RUN_PHASE1.bat: it leaves a build request in the project's
 Saved/HollowHull folder, and the project's Content/Python/init_unreal.py
@@ -30,13 +32,18 @@ except NameError:  # some launch modes do not define __file__
     HERE = os.path.join(os.environ["HH_REPO"], "unreal")
 ROOT = os.path.dirname(HERE)
 KIT_DIR = os.path.join(ROOT, "export", "ship_kit")
-PLACEMENTS = os.path.join(ROOT, "level", "placements.json")
+# (map name, placements file from level/layout.py); the last one is left open in the editor
+LEVELS = [("L_TheHollow", "placements_the_hollow.json"), ("L_FloodedDeck", "placements.json")]
 
 PKG = "/Game/HollowHull"
 MESH_DIR = PKG + "/Meshes"
 MAT_DIR = PKG + "/Materials"
-MAP_PATH = PKG + "/Maps/L_FloodedDeck"
+MAP_DIR = PKG + "/Maps"
+MAP_PATH = MAP_DIR + "/L_FloodedDeck"
 TAG = "HH_Generated"
+# meshes and lights with an "fx" in the placements get this tag (plus the fx name, e.g.
+# HH_FX_pulse) and can move, so unreal/hh_world.py can animate them while you play
+FX_TAG = "HH_FX_"
 
 # --- look tuning (safe to edit and re-run) --------------------------------
 
@@ -345,18 +352,18 @@ def import_kit(manifest, instances):
 
 # --- level ---------------------------------------------------------------
 
-def open_or_create_level():
+def open_or_create_level(map_path):
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-    if asset_exists(MAP_PATH):
-        les.load_level(MAP_PATH)
+    if asset_exists(map_path):
+        les.load_level(map_path)
         eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         old = [a for a in eas.get_all_level_actors() if TAG in [str(t) for t in a.tags]]
         for a in old:
             eas.destroy_actor(a)
         log(f"reopened level, removed {len(old)} generated actors")
     else:
-        les.new_level(MAP_PATH)
-        log("created new level")
+        les.new_level(map_path)
+        log(f"created new level {map_path}")
     return les
 
 
@@ -366,7 +373,16 @@ def _tag(actor, folder):
 
 
 def _count(kind):
-    report["spawned"][kind] = report["spawned"].get(kind, 0) + 1
+    spawned = ctx.get("spawned", report["spawned"])
+    spawned[kind] = spawned.get(kind, 0) + 1
+
+
+def _fx(actor, fx):
+    """Let hh_world find and move this actor while you play."""
+    actor.set_editor_property("tags", [unreal.Name(TAG), unreal.Name(FX_TAG + fx)])
+    root = actor.get_editor_property("root_component")
+    if root is not None:
+        root.set_mobility(unreal.ComponentMobility.MOVABLE)
 
 
 def spawn_meshes(data, meshes):
@@ -376,7 +392,7 @@ def spawn_meshes(data, meshes):
         if not mesh:
             continue
         loc = unreal.Vector(m["x"], m["y"], m["z"])
-        rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=float(m["yaw"]))
+        rot = unreal.Rotator(roll=float(m.get("roll", 0)), pitch=float(m.get("pitch", 0)), yaw=float(m["yaw"]))
         actor = eas.spawn_actor_from_object(mesh, loc, rot)
         if actor is None:
             if m["mesh"] not in ctx.setdefault("spawn_failed", set()):
@@ -387,6 +403,11 @@ def spawn_meshes(data, meshes):
         if scale != 1.0:
             actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
         _tag(actor, m["tag"] or "misc")
+        if m.get("fx"):
+            try:
+                _fx(actor, m["fx"])
+            except Exception as exc:
+                warn(f"{m['mesh']}: could not make it move ({exc})")
         if not m["collision"]:
             actor.static_mesh_component.set_collision_profile_name("NoCollision")
         _count(m["mesh"])
@@ -404,37 +425,47 @@ def spawn_lights(data):
         comp.set_light_color(unreal.LinearColor(r, g, b, 1))
         comp.set_attenuation_radius(li["radius_cm"])
         set_prop(comp, "source_radius", 6.0)
+        if li.get("shadows") is False:
+            comp.set_cast_shadows(False)
+        if li.get("fx"):
+            _fx(actor, li["fx"])
         actor.set_actor_label(f"Lamp_{li['zone']}")
         _count("PointLight")
 
 
 def spawn_atmosphere(data):
+    """Fog and the camera's look; a level's "look" (level/<level>.json) overrides the
+    ship's values, e.g. The Hollow's thick green-black fog and heavy vignette."""
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     bmin, bmax = data["bounds"]["min"], data["bounds"]["max"]
     centre = unreal.Vector((bmin[0] + bmax[0]) / 2, (bmin[1] + bmax[1]) / 2, 0)
+    look = data.get("look", {})
 
     fog = eas.spawn_actor_from_class(unreal.ExponentialHeightFog, centre)
     _tag(fog, "atmosphere")
     fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
-    set_prop(fc, "fog_density", FOG_DENSITY)
+    set_prop(fc, "fog_density", look.get("fog_density", FOG_DENSITY))
     set_prop(fc, "fog_height_falloff", 0.001)
     set_prop(fc, "enable_volumetric_fog", True)
-    set_prop(fc, "volumetric_fog_scattering_distribution", 0.4)
-    set_prop(fc, "fog_inscattering_luminance", unreal.LinearColor(*FOG_COLOR, 1))
+    set_prop(fc, "volumetric_fog_scattering_distribution", look.get("fog_scattering", 0.4))
+    set_prop(fc, "fog_inscattering_luminance", unreal.LinearColor(*look.get("fog_color", FOG_COLOR), 1))
     _count("ExponentialHeightFog")
 
     ppv = eas.spawn_actor_from_class(unreal.PostProcessVolume, centre)
     _tag(ppv, "atmosphere")
     set_prop(ppv, "unbound", True)
     s = ppv.get_editor_property("settings")
-    for prop, value in [
-        ("vignette_intensity", VIGNETTE),
-        ("film_grain_intensity", FILM_GRAIN),
-        ("scene_fringe_intensity", CHROMATIC_ABERRATION),
-        ("auto_exposure_min_brightness", EXPOSURE_MIN_EV),
-        ("auto_exposure_max_brightness", EXPOSURE_MAX_EV),
+    looks = [
+        ("vignette_intensity", look.get("vignette", VIGNETTE)),
+        ("film_grain_intensity", look.get("film_grain", FILM_GRAIN)),
+        ("scene_fringe_intensity", look.get("chromatic_aberration", CHROMATIC_ABERRATION)),
+        ("auto_exposure_min_brightness", look.get("exposure_min_ev", EXPOSURE_MIN_EV)),
+        ("auto_exposure_max_brightness", look.get("exposure_max_ev", EXPOSURE_MAX_EV)),
         ("motion_blur_amount", 0.0),  # the combat camera shakes; blur smeared the whole screen
-    ]:
+    ]
+    if look.get("tint"):
+        looks.append(("scene_color_tint", unreal.LinearColor(*look["tint"], 1)))
+    for prop, value in looks:
         if set_prop(s, "override_" + prop, True):
             set_prop(s, prop, value)
     set_prop(ppv, "settings", s)
@@ -497,8 +528,14 @@ def write_report():
 def stage_load():
     with open(os.path.join(KIT_DIR, "manifest.json")) as f:
         ctx["manifest"] = json.load(f)
-    with open(PLACEMENTS) as f:
-        ctx["data"] = json.load(f)
+    ctx["levels"] = {}
+    for name, file in LEVELS:
+        path = os.path.join(ROOT, "level", file)
+        if not os.path.exists(path):
+            warn(f"{file} is missing, so {name} is not built (run level/layout.py)")
+            continue
+        with open(path) as f:
+            ctx["levels"][name] = json.load(f)
 
 
 def stage_materials():
@@ -516,34 +553,50 @@ def stage_audio():
         warn(f"sounds not imported: {exc}")
 
 
-def stage_level():
-    ctx["les"] = open_or_create_level()
+def _level_stage(name, fn):
+    """A stage for one level: skipped when its placements are missing."""
+    def stage():
+        data = ctx["levels"].get(name)
+        if data is None:
+            return
+        ctx["data"] = data
+        # the ship's counts stay in report["spawned"] (run_phase1.ps1 checks them)
+        ctx["spawned"] = (report["spawned"] if name == "L_FloodedDeck"
+                          else report.setdefault("levels", {}).setdefault(name, {}).setdefault("spawned", {}))
+        fn(name)
+    return stage
 
 
-def stage_meshes():
+def stage_level(name):
+    ctx["les"] = open_or_create_level(f"{MAP_DIR}/{name}")
+
+
+def stage_meshes(name):
     spawn_meshes(ctx["data"], ctx["meshes"])
 
 
-def stage_lights():
+def stage_lights(name):
     spawn_lights(ctx["data"])
 
 
-def stage_atmosphere():
+def stage_atmosphere(name):
     spawn_atmosphere(ctx["data"])
 
 
-def stage_gameplay():
+def stage_gameplay(name):
     if ctx.get("combat"):
         ctx["game_mode"] = hh_combat.spawn_gameplay(ctx["data"])
     else:
         log("Combat variant not in the project; skipping enemies")
 
 
-def stage_save():
+def stage_save(name):
     set_game_mode()
     ctx["les"].save_current_level()
-    report["level"] = MAP_PATH
-    # start the editor camera in the cabin, looking down the first corridor
+    report.setdefault("levels", {}).setdefault(name, {})["saved"] = f"{MAP_DIR}/{name}"
+    if name == "L_FloodedDeck":
+        report["level"] = MAP_PATH
+    # start the editor camera at the player start, looking the way the player will
     ps = ctx["data"]["player_start"]
     try:
         unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).set_level_viewport_camera_info(
@@ -625,15 +678,16 @@ def stage_combat_check():
 STAGES = ([("load", stage_load), ("inventory", stage_inventory), ("materials", stage_materials),
            ("import", stage_import), ("audio", stage_audio), ("combat check", stage_combat_check)] +
           [(f"character {n}", _character_stage(n)) for n in hh_combat.HEROES] +
-          [("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
-           ("atmosphere", stage_atmosphere), ("gameplay", stage_gameplay), ("save", stage_save)])
+          [(f"{step} {lvl}", _level_stage(lvl, fn)) for lvl, _ in LEVELS
+           for step, fn in (("level", stage_level), ("meshes", stage_meshes), ("lights", stage_lights),
+                            ("atmosphere", stage_atmosphere), ("gameplay", stage_gameplay), ("save", stage_save))])
 state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 
 
 def _pause_play_helpers(paused):
     """The play recorder and sound player (started by init_unreal.py) tick every frame;
     keep them out of the way while the build compiles and saves assets."""
-    for name in ("hh_trace", "hh_audio"):
+    for name in ("hh_trace", "hh_audio", "hh_world"):
         mod = sys.modules.get(name)
         if mod is not None and isinstance(getattr(mod, "S", None), dict):
             mod.S["paused"] = paused
