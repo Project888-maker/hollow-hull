@@ -36,6 +36,11 @@ import time
 import unreal
 
 try:
+    import hh_moves
+except Exception:  # the moves are extra; sound works without them
+    hh_moves = None
+
+try:
     HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:
     HERE = os.path.join(os.environ["HH_REPO"], "unreal")
@@ -375,12 +380,25 @@ def _recover_from_hit(c, actor, t):
     c["hit_t"] = None
 
 
+def _nearest_foe(loc):
+    """Where the closest living monster is (last frame), or None."""
+    best, where = None, None
+    for c in S["chars"].values():
+        if c["player"] or c["dead"] or c.get("loc") is None:
+            continue
+        d = math.hypot(c["loc"].x - loc.x, c["loc"].y - loc.y)
+        if best is None or d < best:
+            best, where = d, c["loc"]
+    return where
+
+
 def _look(actor, t, player_pawn):
     key = actor.get_path_name()
     c = S["chars"].get(key)
     if c is None:
         c = S["chars"][key] = _new_char(actor, actor == player_pawn)
     loc = actor.get_actor_location()
+    c["loc"] = loc
     hero = c["hero"]
 
     # health: hits, pain, death
@@ -398,12 +416,18 @@ def _look(actor, t, player_pawn):
                 _play("voice pain", _voice(hero, "Effort_PainHeavy" if heavy else "Effort_Pain"), loc, VOICE_VOLUME)
             if hp > 0:
                 c["hit_t"] = t
+                if hh_moves and hh_moves.handles(c):
+                    foe = _nearest_foe(loc)
+                    if hh_moves.hit(c, actor, t, foe, c["hp"] - hp, c.get("max_hp")):
+                        c["hit_t"] = None  # a flinch instead of Epic's limp wobble
         c["hp"] = hp
+        c["max_hp"] = max(c.get("max_hp") or 0.0, hp)
     _recover_from_hit(c, actor, t)
     if c["dead"]:
         return c, loc
 
     # attacks: each new montage, and each new section of a combo
+    attacking = False
     try:
         anim = actor.get_editor_property("mesh").get_anim_instance()
         montage = anim.get_current_active_montage() if anim else None
@@ -411,8 +435,13 @@ def _look(actor, t, player_pawn):
         if montage is not None and (montage != c["montage"] or section != c["section"]):
             _attack_sounds(c, actor, montage, section, loc)
         c["montage"], c["section"] = montage, section
+        attacking = montage is not None and "Attack" in montage.get_name()
     except Exception as exc:
         _err("montage", exc)
+    if hh_moves and hh_moves.handles(c):
+        foe = _nearest_foe(loc)
+        near = foe is not None and math.hypot(foe.x - loc.x, foe.y - loc.y) < hh_moves.CALM_RADIUS_CM
+        hh_moves.tick(c, actor, t, attacking, near)
 
     # footsteps by distance walked; a heavier step on landing
     try:
@@ -500,7 +529,8 @@ def _write():
     try:
         os.makedirs(os.path.dirname(S["out"]), exist_ok=True)
         data = {"what": "Hollow Hull sound: what played in each Play session (newest last)",
-                "errors": S["errors"], "attack_sections_seen": S["sections"], "sessions": S["sessions"][-3:]}
+                "errors": S["errors"], "attack_sections_seen": S["sections"], "sessions": S["sessions"][-3:],
+                "moves": hh_moves.summary() if hh_moves else "hh_moves not loaded"}
         with open(S["out"], "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1)
     except Exception as exc:

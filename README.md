@@ -63,6 +63,7 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 | `level/layout.py` | Turns a grid map into exact placements (`placements.json`, `placements_the_hollow.json`) |
 | `unreal/hh_setup.py` | Imports the kit, creates materials, builds `L_TheHollow` and `L_FloodedDeck` |
 | `unreal/hh_audio.py` | Sound while you play: footsteps per floor, swings, hits, voices, each level's music |
+| `unreal/hh_moves.py` | Extra moves for Revenant from his own Paragon animations: flinch from the side he is hit, stagger on big hits, gun-spin reload after shooting, idle fidgets |
 | `unreal/hh_world.py` | World events while you play: the fall into The Hollow when Sevarog dies, the beating heart, breathing in the walls |
 | `audio/make_audio.py` | Synthesises all music and sound effects into `audio/wav` |
 | `textures/materials.json` | Realistic surface pictures per material: the fal.ai prompt, how many metres one copy covers, wet-to-dry shine |
