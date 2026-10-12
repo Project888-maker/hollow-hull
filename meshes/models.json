@@ -29,7 +29,7 @@
       "image": 0,
       "material": "M_Gen_Crate",
       "fit": "piece",
-      "max_tris": 1500,
+      "max_tris": 3000,
       "collision": "hull"
     },
     "SM_Barrel": {

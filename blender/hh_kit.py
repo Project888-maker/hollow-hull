@@ -30,6 +30,7 @@ WALL_T = 0.2
 MATERIALS = {
     "M_Steel_Paint": ((0.16, 0.19, 0.17), 0.70, 0.25, 0.0),
     "M_Steel_Dark": ((0.05, 0.055, 0.06), 0.50, 0.90, 0.0),
+    "M_Steel_Tread": ((0.05, 0.055, 0.06), 0.50, 0.90, 0.0),   # diamond deck plate
     "M_Steel_Rust": ((0.22, 0.08, 0.035), 0.80, 0.50, 0.0),
     "M_Wood_Wet": ((0.09, 0.05, 0.028), 0.45, 0.00, 0.0),
     "M_Brass": ((0.55, 0.38, 0.12), 0.35, 1.00, 0.0),
@@ -297,7 +298,7 @@ def _span(a, b):
 
 def floor_steel():
     p = Piece("SM_Floor_Steel")
-    p.box((-HALF, -HALF, -0.1), (HALF, HALF, 0), "M_Steel_Dark", collide=True)
+    p.box((-HALF, -HALF, -0.1), (HALF, HALF, 0), "M_Steel_Tread", collide=True)
     p.box((-HALF, -0.02, 0), (HALF, 0.02, 0.01), "M_Steel_Rust")
     p.box((-0.02, -HALF, 0), (0.02, HALF, 0.01), "M_Steel_Rust")
     return p

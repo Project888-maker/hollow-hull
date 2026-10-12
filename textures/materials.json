@@ -109,7 +109,7 @@
       "seamless": false
     },
     "M_Steel_Dark": {
-      "prompt": "worn dark steel deck plate with diamond tread pattern, oily black grime, scuffs and scratches, patches of rust",
+      "prompt": "dark worn blackened steel surface, oily grime, scratches, small rust spots, slightly uneven painted-over metal",
       "tile_m": 2.0,
       "roughness": [
         0.3,
@@ -118,8 +118,8 @@
       "bump": 6.0,
       "metallic": 0.7,
       "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
-      "seed": 12,
-      "seamless": false
+      "seed": 14,
+      "seamless": true
     },
     "M_Steel_Rust": {
       "prompt": "heavily corroded rusty steel, flaking dark brown and orange rust scale, pitting, wet patches",
@@ -260,6 +260,19 @@
       ],
       "bump": 3.0,
       "metallic": 0.0
+    },
+    "M_Steel_Tread": {
+      "prompt": "worn dark steel deck plate with diamond tread pattern, oily black grime, scuffs and scratches, patches of rust",
+      "tile_m": 2.0,
+      "roughness": [
+        0.3,
+        0.75
+      ],
+      "bump": 6.0,
+      "metallic": 0.7,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "seamless": false
     }
   }
 }
