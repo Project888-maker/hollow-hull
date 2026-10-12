@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-12a (realistic Hollow: fal.ai textures, a real heart and skull piles)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-12b (fix: crash while importing sounds; realistic Hollow)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="

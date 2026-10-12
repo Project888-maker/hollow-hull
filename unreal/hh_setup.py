@@ -17,6 +17,7 @@ Work runs in stages on editor ticks once the editor has settled; the report at
 """
 
 import importlib
+import hashlib
 import json
 import os
 import sys
@@ -266,6 +267,13 @@ def _texture_specs():
 
 
 def _import_texture(path, name, kind):
+    # unchanged pictures are not imported again (re-importing over assets is where
+    # Unreal crashed for sounds); the file's hash is kept as a metadata tag
+    with open(path, "rb") as f:
+        digest = hashlib.sha1(f.read()).hexdigest()
+    existing = unreal.load_asset(f"{TEX_DIR}/{name}") if eal.does_asset_exist(f"{TEX_DIR}/{name}") else None
+    if existing is not None and eal.get_metadata_tag(existing, "HHFileHash") == digest:
+        return existing
     t = unreal.AssetImportTask()
     for prop, value in (("filename", path), ("destination_path", TEX_DIR), ("destination_name", name),
                         ("automated", True), ("replace_existing", True), ("save", False)):
@@ -280,6 +288,7 @@ def _import_texture(path, name, kind):
     elif kind == "orm":
         set_prop(tex, "compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
         set_prop(tex, "srgb", False)
+    eal.set_metadata_tag(tex, "HHFileHash", digest)
     eal.save_loaded_asset(tex)
     return tex
 
@@ -302,7 +311,7 @@ def apply_textures(src_name, mi):
         mel.set_material_instance_vector_parameter_value(mi, "BaseColor", unreal.LinearColor(*tint, 1))
         mel.set_material_instance_scalar_parameter_value(mi, "Tiling", UV_METRES / spec.get("tile_m", 2.0))
         mel.set_material_instance_scalar_parameter_value(mi, "Roughness", 1.0)
-        mel.set_material_instance_scalar_parameter_value(mi, "Metallic", 0.0)
+        mel.set_material_instance_scalar_parameter_value(mi, "Metallic", 1.0)  # the ORM map carries it
         mel.set_material_instance_scalar_parameter_value(mi, "AO", 1.0)
         mel.update_material_instance(mi)
         eal.save_loaded_asset(mi)

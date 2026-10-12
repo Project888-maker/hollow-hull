@@ -25,6 +25,7 @@ start(out)      play time (init_unreal.py starts it on every editor launch, like
 """
 
 import glob
+import hashlib
 import json
 import math
 import os
@@ -65,6 +66,7 @@ CUE_DIR = "/Game/Paragon{h}/Characters/Heroes/{h}/Sounds/SoundCues"
 HERO_HEAD_CM = {"Revenant": 165, "Khaimera": 165, "Grux": 205, "Sevarog": 240}
 FLOORS = {"SM_Floor_Steel": "steel", "SM_Floor_Wood": "wood", "SM_Floor_Grate": "grate",
           "SM_Floor_Flesh": "flesh", "SM_Floor_Bone": "bone"}
+HASH_TAG = "HHWavHash"
 VARIANTS = {"step_steel": 4, "step_wood": 4, "step_grate": 4, "step_water": 4, "step_flesh": 4, "step_bone": 4,
             "hit": 3, "gunshot": 3, "whoosh": 2}
 
@@ -124,17 +126,40 @@ def import_audio(report, warn, log):
         return
     asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
     eal = unreal.EditorAssetLibrary
-    tasks = []
+    # Re-importing over an existing SoundWave crashed Unreal (access violation inside
+    # the sound factory, 2026-10-12). So a sound is imported only when its WAV is new or
+    # changed (hash kept as a metadata tag), and a changed one is deleted first and
+    # imported fresh, never replaced in place. One file per import, logged first, so a
+    # crash names the file.
+    skipped, fresh = 0, 0
     for path in files:
+        name = os.path.splitext(os.path.basename(path))[0]
+        asset_path = f"{AUDIO}/{name}"
+        with open(path, "rb") as f:
+            digest = hashlib.sha1(f.read()).hexdigest()
+        if eal.does_asset_exist(asset_path):
+            old = unreal.load_asset(asset_path)
+            if old is not None and eal.get_metadata_tag(old, HASH_TAG) == digest:
+                skipped += 1
+                continue
+            old = None
+            if not eal.delete_asset(asset_path):
+                warn(f"{name}: old sound could not be removed, kept as it is")
+                continue
+        log(f"audio: importing {name}")
         t = unreal.AssetImportTask()
         t.set_editor_property("filename", path)
         t.set_editor_property("destination_path", AUDIO)
-        t.set_editor_property("destination_name", os.path.splitext(os.path.basename(path))[0])
-        t.set_editor_property("replace_existing", True)
+        t.set_editor_property("destination_name", name)
+        t.set_editor_property("replace_existing", False)
         t.set_editor_property("automated", True)
         t.set_editor_property("save", False)
-        tasks.append(t)
-    asset_tools.import_asset_tasks(tasks)
+        asset_tools.import_asset_tasks([t])
+        wave = unreal.load_asset(asset_path)
+        if wave is not None:
+            eal.set_metadata_tag(wave, HASH_TAG, digest)
+            fresh += 1
+    info["unchanged"], info["newly_imported"] = skipped, fresh
     att = None
     try:
         att = _make_attenuation(asset_tools, eal)
