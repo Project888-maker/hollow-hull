@@ -47,6 +47,8 @@ MATERIALS = {
     "M_Vein_Glow": ((0.85, 0.06, 0.03), 0.30, 0.00, 0.8),
     "M_Pustule_Red": ((1.00, 0.12, 0.06), 0.30, 0.00, 5.0),
     "M_Heart": ((0.25, 0.02, 0.03), 0.12, 0.00, 0.0),
+    "M_Gen_Heart": ((0.30, 0.05, 0.05), 0.30, 0.00, 0.0),       # fal model's own colour map
+    "M_Gen_Bone_Pile": ((0.45, 0.38, 0.28), 0.60, 0.00, 0.0),   # fal model's own colour map
     "M_Void": ((0.003, 0.003, 0.003), 1.00, 0.00, 0.0),
 }
 
@@ -83,7 +85,12 @@ def _textured(mat, spec, files):
             node.image.colorspace_settings.name = "Non-Color"
         links.new(mapping.outputs["Vector"], node.inputs["Vector"])
         images[kind] = node
-    links.new(images["basecolor"].outputs["Color"], bsdf.inputs["Base Color"])
+    tint = nodes.new("ShaderNodeMix")
+    tint.data_type, tint.blend_type = "RGBA", "MULTIPLY"
+    tint.inputs[0].default_value = 1.0
+    tint.inputs[7].default_value = (*spec.get("tint", [1.0, 1.0, 1.0]), 1.0)
+    links.new(images["basecolor"].outputs["Color"], tint.inputs[6])
+    links.new(tint.outputs[2], bsdf.inputs["Base Color"])
     split = nodes.new("ShaderNodeSeparateColor")
     links.new(images["orm"].outputs["Color"], split.inputs["Color"])
     links.new(split.outputs["Green"], bsdf.inputs["Roughness"])
@@ -266,8 +273,8 @@ class Piece:
 def _hull_into(bm, points, mat_index):
     verts = [bm.verts.new(p) for p in points]
     res = bmesh.ops.convex_hull(bm, input=verts)
-    junk = [g for g in res["geom_interior"] + res["geom_unused"]
-            if isinstance(g, bmesh.types.BMVert) and g.is_valid]
+    junk = list({g: None for g in res["geom_interior"] + res["geom_unused"]
+                 if isinstance(g, bmesh.types.BMVert) and g.is_valid})
     if junk:
         bmesh.ops.delete(bm, geom=junk, context="VERTS")
     for g in res["geom"]:
@@ -969,6 +976,72 @@ def harpoon():
     return p
 
 
+# ---------------------------------------------------------------------------
+# Pieces replaced by fal.ai 3D models (tools/fal_models.py, meshes/models.json)
+# ---------------------------------------------------------------------------
+
+MESHES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "meshes")
+
+
+def _models():
+    try:
+        with open(os.path.join(MESHES, "models.json"), encoding="utf-8") as f:
+            return json.load(f)["models"]
+    except (OSError, ValueError):
+        return {}
+
+
+class ModelPiece:
+    """A fitted fal model (meshes/<name>.glb) standing in for a hand-built piece."""
+
+    def __init__(self, name, spec):
+        self.name, self.spec = name, spec
+        self.mats = [spec["material"]]
+
+    def build(self, collection):
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(MESHES, self.name + ".glb"))
+        obj = next(o for o in bpy.data.objects if o not in before and o.type == "MESH")
+        obj.data.transform(obj.matrix_world)
+        obj.parent = None
+        obj.matrix_world = Matrix()
+        for o in [o for o in bpy.data.objects if o not in before and o is not obj]:
+            bpy.data.objects.remove(o)
+        for c in list(obj.users_collection):
+            c.objects.unlink(obj)
+        collection.objects.link(obj)
+        obj.name = obj.data.name = self.name
+        obj.data.materials.clear()
+        obj.data.materials.append(get_material(self.spec["material"]))
+        ucx = []
+        if self.spec.get("collision") == "hull":
+            pts = [v.co.copy() for v in obj.data.vertices][::max(1, len(obj.data.vertices) // 600)]
+            hbm = bmesh.new()
+            _hull_into(hbm, pts, 0)
+            hmesh = bpy.data.meshes.new(f"UCX_{self.name}_00")
+            hbm.to_mesh(hmesh)
+            hbm.free()
+            hobj = bpy.data.objects.new(hmesh.name, hmesh)
+            hobj.display_type = "WIRE"
+            hobj.hide_render = True
+            collection.objects.link(hobj)
+            ucx.append(hobj)
+        return obj, ucx
+
+
+def _model_or(make):
+    def build():
+        p = make()
+        spec = _models().get(p.name)
+        if spec and os.path.exists(os.path.join(MESHES, p.name + ".glb")):
+            if getattr(p, "bm", None):
+                p.bm.free()
+            return ModelPiece(p.name, spec)
+        return p
+    build.__name__ = make.__name__
+    return build
+
+
 CAVE_KIT = [floor_flesh, floor_bone, ceiling_flesh, wall_rib, wall_membrane, arch_rib, vertebra,
             bone_pile, pustules_green, pustules_red, tendrils, heart, harpoon]
 
@@ -979,3 +1052,4 @@ KIT = [
     pipe_straight, pipe_vertical, valve_wheel, crate, barrel, bunk,
     lamp_cage, boiler, door_bulkhead, growth, water_tile,
 ] + CAVE_KIT
+KIT = [_model_or(make) for make in KIT]

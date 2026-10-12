@@ -1,0 +1,27 @@
+{
+  "what": "Kit pieces replaced by fal.ai 3D models. tools/fal_models.py makes a concept picture with 'prompt', turns it into a textured model (Hunyuan3D), then fits it: 'height_m' tall, pivot at its 'pivot' (top = hangs from the roof, bottom = stands on the floor), at most 'max_tris' triangles. It writes meshes/<piece>.glb and the model's colour map to textures/<material>/source.png. blender/hh_kit.py uses meshes/<piece>.glb instead of the hand-built piece whenever it exists. 'collision': 'hull' adds one convex collision hull.",
+  "style": "single object fully visible and centered, isolated on a plain light grey background, soft studio lighting, photorealistic, highly detailed",
+  "models": {
+    "SM_Heart": {
+      "prompt": "a monstrous giant rotting heart, dark crimson wet muscle covered in thick swollen veins and pale fat, great vessels rising from the top, horror creature organ",
+      "seed": 7,
+      "image": 0,
+      "material": "M_Gen_Heart",
+      "height_m": 3.4,
+      "pivot": "top",
+      "max_tris": 24000,
+      "collision": "none"
+    },
+    "SM_Bone_Pile": {
+      "prompt": "a low wide heap of old human skulls and bones lying on the ground, yellowed and stained with dirt",
+      "seed": 21,
+      "image": 0,
+      "material": "M_Gen_Bone_Pile",
+      "height_m": 0.6,
+      "width_m": 1.4,
+      "pivot": "bottom",
+      "max_tris": 9000,
+      "collision": "hull"
+    }
+  }
+}

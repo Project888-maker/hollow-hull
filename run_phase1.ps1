@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-11w (new level: The Hollow, the living cave under the ship)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-12a (realistic Hollow: fal.ai textures, a real heart and skull piles)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -485,6 +485,12 @@ if ($hollow -and $hollow.spawned) {
     foreach ($k in $hs.PSObject.Properties) { if ($k.Name -like "SM_*") { $meshes += [int]$k.Value } }
     Say "`n=== The Hollow (L_TheHollow) ==="
     Say "  $meshes pieces of flesh and bone, $([int]$hs.PointLight) glowing lights" "Green"
+}
+if ($r.textures) {
+    $ok = @($r.textures.PSObject.Properties | Where-Object { $_.Value -eq "textured" }).Count
+    $all = @($r.textures.PSObject.Properties).Count
+    Say "Realistic surfaces: $ok of $all materials got their fal textures" $(if ($ok -eq $all) { "Green" } else { "Yellow" })
+    foreach ($t in $r.textures.PSObject.Properties) { if ($t.Value -ne "textured") { Say "  $($t.Name): $($t.Value)" "Yellow" } }
 }
 Say "`nNow in Unreal: press Play (Alt+P). WASD to move, Space to jump."  "Cyan"
 Say "Route: cabin -> corridor -> crew quarters -> corridor -> flooded engine room (stairs to the mezzanine)" "Cyan"

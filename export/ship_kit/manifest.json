@@ -182,6 +182,26 @@
       "metallic": 0.0,
       "emissive": 0.0
     },
+    "M_Gen_Heart": {
+      "base_color": [
+        0.3,
+        0.05,
+        0.05
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Bone_Pile": {
+      "base_color": [
+        0.45,
+        0.38,
+        0.28
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
     "M_Void": {
       "base_color": [
         0.003,
@@ -771,20 +791,19 @@
       "name": "SM_Bone_Pile",
       "file": "SM_Bone_Pile.fbx",
       "materials": [
-        "M_Bone",
-        "M_Void"
+        "M_Gen_Bone_Pile"
       ],
       "collision_hulls": 1,
-      "triangles": 7880,
+      "triangles": 8999,
       "bounds_min_m": [
-        -1.051,
-        -1.198,
-        -0.019
+        -0.699,
+        -0.571,
+        0.0
       ],
       "bounds_max_m": [
-        1.21,
-        1.141,
-        0.955
+        0.693,
+        0.571,
+        0.6
       ]
     },
     {
@@ -851,22 +870,19 @@
       "name": "SM_Heart",
       "file": "SM_Heart.fbx",
       "materials": [
-        "M_Heart",
-        "M_Flesh",
-        "M_Vein_Glow",
-        "M_Pustule_Red"
+        "M_Gen_Heart"
       ],
       "collision_hulls": 0,
-      "triangles": 3656,
+      "triangles": 24000,
       "bounds_min_m": [
-        -1.977,
-        -0.889,
-        -3.6
+        -1.04,
+        -0.913,
+        -3.4
       ],
       "bounds_max_m": [
-        1.907,
-        2.025,
-        0.089
+        1.04,
+        0.913,
+        0.0
       ]
     },
     {

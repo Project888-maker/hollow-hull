@@ -12,6 +12,7 @@ key, for setups where a proxy adds the Authorization header itself.
 import argparse
 import json
 import os
+import urllib.error
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,15 +39,19 @@ def main():
         spec = json.load(f)
     only = {n for n in args.only.split(",") if n}
     for i, (name, m) in enumerate(spec["materials"].items()):
-        if only and name not in only:
+        if (only and name not in only) or m.get("atlas"):
             continue
         out = os.path.join(TEX, name, "source.png")
         if os.path.exists(out) and not args.force:
             print(f"{name}: already has source.png")
             continue
-        payload = {"prompt": f"{m['prompt']}, {spec['style']}", "image_size": "square_hd", "num_images": 1,
-                   "seed": 1000 + i, "num_inference_steps": 32, "enable_safety_checker": False}
-        result = call(args.model, payload, key)
+        payload = {"prompt": f"{m['prompt']}, {m.get('style', spec['style'])}", "image_size": "square_hd", "num_images": 1,
+                   "seed": m.get("seed", 1000 + i), "num_inference_steps": 32, "enable_safety_checker": False}
+        try:
+            result = call(args.model, payload, key)
+        except urllib.error.HTTPError as e:
+            print(f"{name}: fal refused ({e.code}) {e.read()[:300].decode(errors='replace')}")
+            continue
         url = result["images"][0]["url"]
         os.makedirs(os.path.dirname(out), exist_ok=True)
         with urllib.request.urlopen(url, timeout=120) as r, open(out, "wb") as f:

@@ -1,12 +1,99 @@
 {
-  "what": "Surface pictures for the kit's materials. tools/fal_textures.py asks fal.ai for each 'prompt' and saves textures/<material>/source.png; tools/make_pbr.py turns that into basecolor, normal and orm maps. 'tile_m' is how many metres one copy of the picture covers in the game; 'tint' multiplies the picture (1 = as generated); 'roughness' is [wettest, driest].",
-  "style": "seamless tileable texture, top-down orthographic photo, flat even lighting, no shadows, no perspective, highly detailed, photorealistic, 4k material scan",
+  "what": "Surface pictures for the kit's materials. tools/fal_textures.py asks fal.ai for each 'prompt' and saves textures/<material>/source.png; tools/make_pbr.py turns that into basecolor, normal and orm maps. 'tile_m' is how many metres one copy of the picture covers in the game; 'tint' multiplies the picture (1 = as generated); 'roughness' is [wettest, driest]. Optional per material: 'style' replaces the shared style, 'seed' fixes the generation, 'crop' keeps only that centre fraction of the picture (the model sometimes draws a framed slab). 'atlas': true marks the colour map of a fal 3D model (meshes/models.json): used as is, not made tileable, and fal_textures.py skips it.",
+  "style": "seamless tileable texture, the surface fills the entire frame edge to edge, no border, no frame, no background, macro close-up photo seen straight on, soft even lighting, muted natural colors, photorealistic, highly detailed, 4k PBR material scan",
   "materials": {
-    "M_Flesh": {"prompt": "wet raw flesh, glistening dark red and purple muscle tissue with fine fibres, mucus sheen, small blood vessels", "tile_m": 2.0, "roughness": [0.12, 0.45], "bump": 7.0},
-    "M_Flesh_Dark": {"prompt": "dark rotting flesh, almost black maroon tissue, wrinkled and folded, wet slime in the folds", "tile_m": 2.5, "roughness": [0.18, 0.55], "bump": 8.0},
-    "M_Heart": {"prompt": "wet heart muscle surface, deep crimson myocardium with fat streaks and branching coronary veins, glossy", "tile_m": 1.5, "roughness": [0.08, 0.35], "bump": 6.0},
-    "M_Bone": {"prompt": "old weathered human bone surface, yellowed ivory with pores, hairline cracks and brown stains, dry", "tile_m": 1.0, "roughness": [0.45, 0.8], "bump": 5.0},
-    "M_Tooth": {"prompt": "stained yellow tooth enamel, smooth with fine vertical cracks and brown plaque near the edges", "tile_m": 0.5, "roughness": [0.25, 0.5], "bump": 3.0},
-    "M_Membrane": {"prompt": "thin translucent red membrane stretched tight, backlit, network of dark veins and capillaries, wet", "tile_m": 2.0, "roughness": [0.1, 0.3], "bump": 4.0}
+    "M_Flesh": {
+      "prompt": "wet raw meat surface, dark red and purple muscle tissue with fine fibres, pale fat streaks, mucus sheen, irregular and organic",
+      "tile_m": 2.0,
+      "roughness": [
+        0.12,
+        0.45
+      ],
+      "bump": 7.0
+    },
+    "M_Flesh_Dark": {
+      "prompt": "dark rotting flesh, almost black maroon tissue, wrinkled and folded, wet slime in the folds",
+      "tile_m": 4.0,
+      "roughness": [
+        0.18,
+        0.55
+      ],
+      "bump": 8.0
+    },
+    "M_Heart": {
+      "prompt": "wet raw heart muscle surface, dark crimson and maroon tissue with pale fat patches and thin dark branching vessels, slimy, irregular",
+      "tile_m": 1.5,
+      "roughness": [
+        0.08,
+        0.35
+      ],
+      "bump": 6.0
+    },
+    "M_Bone": {
+      "prompt": "flat close-up of a large area of old weathered bone, porous grey-ivory bone with tiny pits and pores, hairline cracks, brown dirt stains",
+      "tile_m": 1.0,
+      "roughness": [
+        0.45,
+        0.8
+      ],
+      "bump": 5.0,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "crop": 0.78,
+      "tint": [
+        0.78,
+        0.74,
+        0.66
+      ]
+    },
+    "M_Tooth": {
+      "prompt": "flat close-up of a large area of old stained ivory enamel, dull yellow-brown with fine vertical crazing cracks and dark tartar stains",
+      "tile_m": 0.5,
+      "roughness": [
+        0.25,
+        0.5
+      ],
+      "bump": 3.0,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "crop": 0.78,
+      "tint": [
+        0.85,
+        0.8,
+        0.7
+      ]
+    },
+    "M_Membrane": {
+      "prompt": "thin translucent deep red organic skin like a bat wing, backlit, fine branching network of dark veins, glossy",
+      "tile_m": 2.0,
+      "roughness": [
+        0.1,
+        0.3
+      ],
+      "bump": 4.0
+    },
+    "M_Gen_Heart": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.1,
+        0.4
+      ],
+      "bump": 3.0
+    },
+    "M_Gen_Bone_Pile": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.45,
+        0.8
+      ],
+      "bump": 3.0,
+      "tint": [
+        0.8,
+        0.76,
+        0.68
+      ]
+    }
   }
 }

@@ -28,8 +28,12 @@ TEX = os.path.join(ROOT, "textures")
 SIZE = 1024
 
 
-def load_rgb(path):
+def load_rgb(path, crop=1.0):
     img = Image.open(path).convert("RGB")
+    if crop < 1.0:
+        w, h = img.size
+        cw, ch = int(w * crop), int(h * crop)
+        img = img.crop(((w - cw) // 2, (h - ch) // 2, (w + cw) // 2, (h + ch) // 2))
     if img.size != (SIZE, SIZE):
         img = img.resize((SIZE, SIZE), Image.LANCZOS)
     return np.asarray(img).astype(np.float32) / 255.0
@@ -88,7 +92,9 @@ def build(name, spec):
     src = os.path.join(folder, "source.png")
     if not os.path.exists(src):
         return False
-    rgb = make_seamless(load_rgb(src))
+    rgb = load_rgb(src, spec.get("crop", 1.0))
+    if not spec.get("atlas"):  # a 3D model's colour map is wrapped onto it, not tiled
+        rgb = make_seamless(rgb)
     height, lum = height_from(rgb)
     small = blur(height, 2)
     normal = normal_from(small, spec.get("bump", 6.0))
