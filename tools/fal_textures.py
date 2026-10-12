@@ -5,13 +5,13 @@
 Saves textures/<material>/source.png (skipped when it already exists, unless --force),
 then run tools/make_pbr.py to make the colour, bump and shine maps from it.
 Plain Python 3, no extra packages. The key is read from the FAL_KEY environment
-variable and never written anywhere.
+variable and never written anywhere. Without FAL_KEY the request goes out with no
+key, for setups where a proxy adds the Authorization header itself.
 """
 
 import argparse
 import json
 import os
-import sys
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,8 +19,10 @@ TEX = os.path.join(ROOT, "textures")
 
 
 def call(model, payload, key):
-    req = urllib.request.Request(f"https://fal.run/{model}", data=json.dumps(payload).encode(),
-                                 headers={"Authorization": f"Key {key}", "Content-Type": "application/json"})
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Key {key}"
+    req = urllib.request.Request(f"https://fal.run/{model}", data=json.dumps(payload).encode(), headers=headers)
     with urllib.request.urlopen(req, timeout=300) as r:
         return json.load(r)
 
@@ -32,8 +34,6 @@ def main():
     ap.add_argument("--model", default="fal-ai/flux/dev")
     args = ap.parse_args()
     key = os.environ.get("FAL_KEY")
-    if not key:
-        sys.exit("FAL_KEY is not set")
     with open(os.path.join(TEX, "materials.json"), encoding="utf-8") as f:
         spec = json.load(f)
     only = {n for n in args.only.split(",") if n}
