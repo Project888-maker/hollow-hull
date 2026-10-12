@@ -22,6 +22,16 @@
       "metallic": 0.9,
       "emissive": 0.0
     },
+    "M_Steel_Tread": {
+      "base_color": [
+        0.05,
+        0.055,
+        0.06
+      ],
+      "roughness": 0.5,
+      "metallic": 0.9,
+      "emissive": 0.0
+    },
     "M_Steel_Rust": {
       "base_color": [
         0.22,
@@ -308,7 +318,7 @@
       "name": "SM_Floor_Steel",
       "file": "SM_Floor_Steel.fbx",
       "materials": [
-        "M_Steel_Dark",
+        "M_Steel_Tread",
         "M_Steel_Rust"
       ],
       "collision_hulls": 1,
@@ -575,7 +585,7 @@
         "M_Gen_Crate"
       ],
       "collision_hulls": 1,
-      "triangles": 1490,
+      "triangles": 2990,
       "bounds_min_m": [
         -0.5,
         -0.5,
