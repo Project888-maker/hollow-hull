@@ -5,8 +5,9 @@
 Needs Blender's Python module (bpy; `pip install bpy` or Blender's own python) for the
 fitting step. For each model: a concept picture (fal-ai/flux/dev) is turned into a
 textured model (fal-ai/hunyuan3d/v2), saved raw in meshes/raw/ (not committed), then
-fitted: joined, decimated to max_tris, scaled to height_m (and width_m), pivot moved
-to its top or bottom, material renamed. Writes meshes/<piece>.glb (geometry + UVs)
+fitted: joined, decimated to max_tris, then either stretched to fill the box of the
+hand-built piece it replaces ("fit": "piece") or scaled to height_m (and width_m) with
+the pivot at its top or bottom; material renamed. Writes meshes/<piece>.glb (geometry + UVs)
 and textures/<material>/source.png (the model's colour map); run tools/make_pbr.py
 after it. --refit redoes only the fitting from the raw download.
 
@@ -62,6 +63,21 @@ def generate(name, m, style):
     print(f"{name}: raw model saved")
 
 
+def piece_bounds(name):
+    """Bounding box of the hand-built kit piece called name (blender/hh_kit.py)."""
+    from mathutils import Vector
+    sys.path.insert(0, os.path.join(ROOT, "blender"))
+    import hh_kit
+    for make in hh_kit.PROCEDURAL_KIT:
+        p = make()
+        if p.name == name:
+            xs = [v.co for v in p.bm.verts]
+            p.bm.free()
+            return (Vector([min(c[i] for c in xs) for i in range(3)]), Vector([max(c[i] for c in xs) for i in range(3)]))
+        p.bm.free()
+    raise KeyError(name)
+
+
 def fit(name, m):
     import bpy
     from mathutils import Vector
@@ -93,16 +109,31 @@ def fit(name, m):
         bpy.ops.object.modifier_apply(modifier=mod.name)
 
     me = obj.data
-    xs = [v.co for v in me.vertices]
-    mn = Vector([min(c[i] for c in xs) for i in range(3)])
-    mx = Vector([max(c[i] for c in xs) for i in range(3)])
+
+    def bounds():
+        xs = [v.co for v in me.vertices]
+        return (Vector([min(c[i] for c in xs) for i in range(3)]), Vector([max(c[i] for c in xs) for i in range(3)]))
+
+    mn, mx = bounds()
     size = mx - mn
-    s = m["height_m"] / size.z
-    sxy = m.get("width_m", 0) / max(size.x, size.y) if m.get("width_m") else s
-    pivot = Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mx.z if m["pivot"] == "top" else mn.z))
-    for v in me.vertices:
-        d = v.co - pivot
-        v.co = Vector((d.x * sxy, d.y * sxy, d.z * s))
+    if m.get("fit") == "piece":
+        # fill exactly the box of the hand-built piece it replaces, so placements still fit
+        tmn, tmx = piece_bounds(name)
+        tsize = tmx - tmn
+        if (size.x > size.y) != (tsize.x > tsize.y):
+            for v in me.vertices:
+                v.co = Vector((-v.co.y, v.co.x, v.co.z))
+            mn, mx = bounds()
+            size = mx - mn
+        for v in me.vertices:
+            v.co = Vector([tmn[i] + (v.co[i] - mn[i]) / size[i] * tsize[i] for i in range(3)])
+    else:
+        s = m["height_m"] / size.z
+        sxy = m.get("width_m", 0) / max(size.x, size.y) if m.get("width_m") else s
+        pivot = Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mx.z if m["pivot"] == "top" else mn.z))
+        for v in me.vertices:
+            d = v.co - pivot
+            v.co = Vector((d.x * sxy, d.y * sxy, d.z * s))
     me.materials.clear()
     me.materials.append(bpy.data.materials.new(mat_name))
     for p in me.polygons:
@@ -110,6 +141,16 @@ def fit(name, m):
         p.use_smooth = True
     obj.name = me.name = name
     me.validate()
+
+    # the colour map's material entry, so make_pbr.py and the game pick it up
+    tpath = os.path.join(TEX, "materials.json")
+    with open(tpath, encoding="utf-8") as f:
+        tex = json.load(f)
+    if mat_name not in tex["materials"]:
+        tex["materials"][mat_name] = {"atlas": True, "tile_m": 2.0, "roughness": m.get("roughness", [0.4, 0.85]),
+                                      "bump": 3.0, "metallic": m.get("metallic", 0.0)}
+        with open(tpath, "w", encoding="utf-8") as f:
+            json.dump(tex, f, indent=2)
 
     out = os.path.join(MESHES, name + ".glb")
     bpy.ops.export_scene.gltf(filepath=out, use_selection=True, export_format="GLB", export_image_format="NONE",

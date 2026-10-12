@@ -94,7 +94,7 @@ def _textured(mat, spec, files):
     split = nodes.new("ShaderNodeSeparateColor")
     links.new(images["orm"].outputs["Color"], split.inputs["Color"])
     links.new(split.outputs["Green"], bsdf.inputs["Roughness"])
-    bsdf.inputs["Metallic"].default_value = 0.0
+    links.new(split.outputs["Blue"], bsdf.inputs["Metallic"])
     nmap = nodes.new("ShaderNodeNormalMap")
     flip = nodes.new("ShaderNodeSeparateColor")  # the maps use Unreal's green-down convention
     join = nodes.new("ShaderNodeCombineColor")
@@ -976,6 +976,76 @@ def harpoon():
     return p
 
 
+
+# ---------------------------------------------------------------------------
+# Life aboard: furniture and clutter (fal.ai models replace these simple shapes)
+# ---------------------------------------------------------------------------
+
+def table():
+    p = Piece("SM_Table")
+    p.box((-0.7, -0.4, 0.72), (0.7, 0.4, 0.78), "M_Wood_Wet")
+    for x in (-0.62, 0.62):
+        for y in (-0.32, 0.32):
+            p.box((x - 0.04, y - 0.04, 0), (x + 0.04, y + 0.04, 0.72), "M_Wood_Wet")
+    p.collide_box((-0.7, -0.4, 0), (0.7, 0.4, 0.78))
+    return p
+
+
+def chair():
+    p = Piece("SM_Chair")
+    p.box((-0.22, -0.22, 0.42), (0.22, 0.22, 0.46), "M_Wood_Wet")
+    for x in (-0.19, 0.19):
+        for y in (-0.19, 0.19):
+            p.box((x - 0.025, y - 0.025, 0), (x + 0.025, y + 0.025, 0.42), "M_Wood_Wet")
+    p.box((-0.22, 0.18, 0.46), (0.22, 0.22, 0.95), "M_Wood_Wet")
+    p.collide_box((-0.22, -0.22, 0), (0.22, 0.22, 0.95))
+    return p
+
+
+def sea_chest():
+    p = Piece("SM_Sea_Chest")
+    p.box((-0.5, -0.27, 0), (0.5, 0.27, 0.5), "M_Wood_Wet")
+    p.cyl((-0.5, 0, 0.5), (0.5, 0, 0.5), 0.27, "M_Wood_Wet", segments=10)
+    for x in (-0.35, 0.35):
+        p.box((x - 0.03, -0.28, 0), (x + 0.03, 0.28, 0.6), "M_Brass")
+    p.collide_box((-0.5, -0.27, 0), (0.5, 0.27, 0.62))
+    return p
+
+
+def rope_coil():
+    p = Piece("SM_Rope_Coil")
+    for i in range(4):
+        r = 0.42 - i * 0.06
+        z = 0.04 + i * 0.07
+        ring = [(r * math.cos(a), r * math.sin(a), z) for a in (k * math.tau / 16 for k in range(17))]
+        p.tube(ring, 0.04, 0.04, "M_Fabric", segments=6)
+    p.collide_hull([(0.45 * math.cos(a), 0.45 * math.sin(a), z) for a in (k * math.tau / 8 for k in range(8))
+                    for z in (0, 0.3)])
+    return p
+
+
+def sacks():
+    p = Piece("SM_Sacks")
+    for c, s in (((-0.3, 0, 0.18), (0.45, 0.3, 0.2)), ((0.3, 0.05, 0.18), (0.45, 0.3, 0.2)),
+                 ((0, -0.05, 0.48), (0.45, 0.3, 0.18))):
+        p.sphere(c, 1.0, "M_Fabric", scale=s, segments=10)
+    p.collide_box((-0.6, -0.45, 0), (0.6, 0.45, 0.6))
+    return p
+
+
+def debris():
+    """Floor clutter: broken planks, rags, a dropped tin (no collision)."""
+    p = Piece("SM_Debris")
+    rng = random.Random(97)
+    for _ in range(7):
+        a = rng.uniform(0, math.tau)
+        x, y = rng.uniform(-0.8, 0.8), rng.uniform(-0.8, 0.8)
+        L = rng.uniform(0.3, 0.8)
+        p.cyl((x, y, 0.02), (x + L * math.cos(a), y + L * math.sin(a), 0.02), 0.025, "M_Wood_Wet", segments=4)
+    p.sphere((0.3, -0.4, 0.03), 0.2, "M_Fabric", scale=(1.2, 0.8, 0.15), segments=8)
+    p.cyl((-0.4, 0.3, 0), (-0.4, 0.3, 0.12), 0.05, "M_Steel_Rust", segments=8)
+    return p
+
 # ---------------------------------------------------------------------------
 # Pieces replaced by fal.ai 3D models (tools/fal_models.py, meshes/models.json)
 # ---------------------------------------------------------------------------
@@ -989,6 +1059,10 @@ def _models():
             return json.load(f)["models"]
     except (OSError, ValueError):
         return {}
+
+
+for _spec in _models().values():  # a fal model's material: its own colour map, grey until then
+    MATERIALS.setdefault(_spec["material"], ((0.3, 0.3, 0.3), 0.6, 0.0, 0.0))
 
 
 class ModelPiece:
@@ -1051,5 +1125,7 @@ KIT = [
     wall, wall_door, wall_porthole, pillar, stairs, railing,
     pipe_straight, pipe_vertical, valve_wheel, crate, barrel, bunk,
     lamp_cage, boiler, door_bulkhead, growth, water_tile,
+    table, chair, sea_chest, rope_coil, sacks, debris,
 ] + CAVE_KIT
+PROCEDURAL_KIT = KIT
 KIT = [_model_or(make) for make in KIT]

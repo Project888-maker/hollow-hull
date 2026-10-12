@@ -1,5 +1,5 @@
 {
-  "what": "Kit pieces replaced by fal.ai 3D models. tools/fal_models.py makes a concept picture with 'prompt', turns it into a textured model (Hunyuan3D), then fits it: 'height_m' tall, pivot at its 'pivot' (top = hangs from the roof, bottom = stands on the floor), at most 'max_tris' triangles. It writes meshes/<piece>.glb and the model's colour map to textures/<material>/source.png. blender/hh_kit.py uses meshes/<piece>.glb instead of the hand-built piece whenever it exists. 'collision': 'hull' adds one convex collision hull.",
+  "what": "Kit pieces replaced by fal.ai 3D models. tools/fal_models.py makes a concept picture with 'prompt', turns it into a textured model (Hunyuan3D), then fits it: 'fit': 'piece' fills exactly the box of the hand-built piece it replaces; otherwise 'height_m' tall, pivot at its 'pivot' (top = hangs from the roof, bottom = stands on the floor), at most 'max_tris' triangles. It writes meshes/<piece>.glb and the model's colour map to textures/<material>/source.png. blender/hh_kit.py uses meshes/<piece>.glb instead of the hand-built piece whenever it exists. 'collision': 'hull' adds one convex collision hull.",
   "style": "single object fully visible and centered, isolated on a plain light grey background, soft studio lighting, photorealistic, highly detailed",
   "models": {
     "SM_Heart": {
@@ -21,6 +21,89 @@
       "width_m": 1.4,
       "pivot": "bottom",
       "max_tris": 9000,
+      "collision": "hull"
+    },
+    "SM_Crate": {
+      "prompt": "an old wooden cargo crate with iron corner brackets, wet dark weathered planks, faded stencilled lettering, cube shaped",
+      "seed": 50,
+      "image": 0,
+      "material": "M_Gen_Crate",
+      "fit": "piece",
+      "max_tris": 1500,
+      "collision": "hull"
+    },
+    "SM_Barrel": {
+      "prompt": "an old rusty steel oil drum, dented, streaks of rust and dark oil stains",
+      "seed": 51,
+      "image": 0,
+      "material": "M_Gen_Barrel",
+      "fit": "piece",
+      "max_tris": 2500,
+      "collision": "hull",
+      "metallic": 0.4
+    },
+    "SM_Bunk": {
+      "prompt": "an old iron-framed two-tier ship crew bunk bed, two stacked narrow beds one above the other, thin stained mattresses, crumpled grey wool blankets",
+      "seed": 71,
+      "image": 0,
+      "material": "M_Gen_Bunk",
+      "fit": "piece",
+      "max_tris": 5000,
+      "collision": "hull"
+    },
+    "SM_Valve_Wheel": {
+      "prompt": "a round rusty iron valve hand wheel with five spokes and a central hub, seen from the front, just the wheel",
+      "seed": 72,
+      "image": 0,
+      "material": "M_Gen_Valve_Wheel",
+      "fit": "piece",
+      "max_tris": 2500,
+      "collision": "none",
+      "metallic": 0.4
+    },
+    "SM_Table": {
+      "prompt": "an old heavy wooden ship mess table, rectangular, worn scratched top, thick legs",
+      "seed": 54,
+      "image": 0,
+      "material": "M_Gen_Table",
+      "fit": "piece",
+      "max_tris": 3000,
+      "collision": "hull"
+    },
+    "SM_Chair": {
+      "prompt": "an old wooden chair with a straight back, worn and scratched",
+      "seed": 55,
+      "image": 0,
+      "material": "M_Gen_Chair",
+      "fit": "piece",
+      "max_tris": 2000,
+      "collision": "hull"
+    },
+    "SM_Sea_Chest": {
+      "prompt": "an old sailor's wooden sea chest with a rounded lid, iron straps and a padlock, weathered",
+      "seed": 56,
+      "image": 0,
+      "material": "M_Gen_Sea_Chest",
+      "fit": "piece",
+      "max_tris": 3000,
+      "collision": "hull"
+    },
+    "SM_Rope_Coil": {
+      "prompt": "a coil of thick old frayed ship rope lying flat on the ground, wet and dirty",
+      "seed": 57,
+      "image": 0,
+      "material": "M_Gen_Rope_Coil",
+      "fit": "piece",
+      "max_tris": 3000,
+      "collision": "hull"
+    },
+    "SM_Sacks": {
+      "prompt": "a pile of three old burlap grain sacks lying on the ground, dirty and damp",
+      "seed": 58,
+      "image": 0,
+      "material": "M_Gen_Sacks",
+      "fit": "piece",
+      "max_tris": 3000,
       "collision": "hull"
     }
   }

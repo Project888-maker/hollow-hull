@@ -10,7 +10,7 @@ next to it:
     normal.png      surface bumps worked out from the picture's light and dark
                     (dark cracks and pores sink in, bright lumps stand out)
     orm.png         R = ambient occlusion (crevices darker), G = roughness (wet areas
-                    shiny, dry areas dull), B = metallic (always 0 here)
+                    shiny, dry areas dull), B = metallic (the material's 'metallic' value)
 
 unreal/hh_setup.py imports these three into /Game/HollowHull/Textures and plugs them
 into the material instance of the same name; blender/hh_kit.py uses them for previews.
@@ -93,7 +93,7 @@ def build(name, spec):
     if not os.path.exists(src):
         return False
     rgb = load_rgb(src, spec.get("crop", 1.0))
-    if not spec.get("atlas"):  # a 3D model's colour map is wrapped onto it, not tiled
+    if not spec.get("atlas") and spec.get("seamless", True):  # a model's colour map is wrapped, not tiled
         rgb = make_seamless(rgb)
     height, lum = height_from(rgb)
     small = blur(height, 2)
@@ -102,7 +102,7 @@ def build(name, spec):
     lo, hi = spec.get("roughness", [0.2, 0.6])
     # brighter, raised parts read wetter (shinier) on flesh; cracks stay dull
     rough = hi - (hi - lo) * (0.6 * small + 0.4 * lum)
-    orm = np.stack([ao, np.clip(rough, 0, 1), np.zeros_like(ao)], axis=-1)
+    orm = np.stack([ao, np.clip(rough, 0, 1), np.full_like(ao, spec.get("metallic", 0.0))], axis=-1)
     save(os.path.join(folder, "basecolor.png"), rgb)
     save(os.path.join(folder, "normal.png"), normal)
     save(os.path.join(folder, "orm.png"), orm)

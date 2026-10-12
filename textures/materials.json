@@ -1,5 +1,5 @@
 {
-  "what": "Surface pictures for the kit's materials. tools/fal_textures.py asks fal.ai for each 'prompt' and saves textures/<material>/source.png; tools/make_pbr.py turns that into basecolor, normal and orm maps. 'tile_m' is how many metres one copy of the picture covers in the game; 'tint' multiplies the picture (1 = as generated); 'roughness' is [wettest, driest]. Optional per material: 'style' replaces the shared style, 'seed' fixes the generation, 'crop' keeps only that centre fraction of the picture (the model sometimes draws a framed slab). 'atlas': true marks the colour map of a fal 3D model (meshes/models.json): used as is, not made tileable, and fal_textures.py skips it.",
+  "what": "Surface pictures for the kit's materials. tools/fal_textures.py asks fal.ai for each 'prompt' and saves textures/<material>/source.png; tools/make_pbr.py turns that into basecolor, normal and orm maps. 'tile_m' is how many metres one copy of the picture covers in the game; 'tint' multiplies the picture (1 = as generated); 'roughness' is [wettest, driest]. Optional per material: 'style' replaces the shared style, 'seed' fixes the generation, 'crop' keeps only that centre fraction of the picture (the model sometimes draws a framed slab). 'atlas': true marks the colour map of a fal 3D model (meshes/models.json): used as is, not made tileable, and fal_textures.py skips it. 'metallic' (0-1) goes into the ORM map's blue channel. 'seamless': false keeps the picture's own edges (plates that already end in a seam).",
   "style": "seamless tileable texture, the surface fills the entire frame edge to edge, no border, no frame, no background, macro close-up photo seen straight on, soft even lighting, muted natural colors, photorealistic, highly detailed, 4k PBR material scan",
   "materials": {
     "M_Flesh": {
@@ -94,6 +94,172 @@
         0.76,
         0.68
       ]
+    },
+    "M_Steel_Paint": {
+      "prompt": "old ship hull interior steel plate painted dull grey-green, paint flaking and peeling, rust bleeding from rivet lines and streaking down, grime and water stains",
+      "tile_m": 3.0,
+      "roughness": [
+        0.45,
+        0.85
+      ],
+      "bump": 5.0,
+      "metallic": 0.0,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "seamless": false
+    },
+    "M_Steel_Dark": {
+      "prompt": "worn dark steel deck plate with diamond tread pattern, oily black grime, scuffs and scratches, patches of rust",
+      "tile_m": 2.0,
+      "roughness": [
+        0.3,
+        0.75
+      ],
+      "bump": 6.0,
+      "metallic": 0.7,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "seamless": false
+    },
+    "M_Steel_Rust": {
+      "prompt": "heavily corroded rusty steel, flaking dark brown and orange rust scale, pitting, wet patches",
+      "tile_m": 1.5,
+      "roughness": [
+        0.55,
+        0.95
+      ],
+      "bump": 7.0,
+      "metallic": 0.1,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12
+    },
+    "M_Wood_Wet": {
+      "prompt": "old wet dark brown wooden ship deck planks texture, horizontal boards, black gaps, nail heads, mould stains",
+      "tile_m": 2.0,
+      "roughness": [
+        0.25,
+        0.7
+      ],
+      "bump": 6.0,
+      "metallic": 0.0,
+      "style": "top view orthographic, flat lighting, seamless game texture, albedo map, photoscanned, no perspective",
+      "seed": 43
+    },
+    "M_Brass": {
+      "prompt": "old tarnished brass surface, dull gold with dark brown patina and green verdigris spots, fine scratches",
+      "tile_m": 0.6,
+      "roughness": [
+        0.25,
+        0.6
+      ],
+      "bump": 3.0,
+      "metallic": 1.0,
+      "style": "the surface continues past every edge of the frame, no object outline, no background, no border, flat surface seen straight on, soft even light, muted natural colors, photorealistic macro texture photograph, highly detailed",
+      "seed": 12,
+      "crop": 0.72
+    },
+    "M_Fabric": {
+      "prompt": "coarse dirty grey-brown wool blanket fabric texture, woven threads clearly visible, stains",
+      "tile_m": 1.0,
+      "roughness": [
+        0.8,
+        1.0
+      ],
+      "bump": 4.0,
+      "metallic": 0.0,
+      "style": "top view orthographic, flat lighting, seamless game texture, albedo map, photoscanned, no perspective",
+      "seed": 42,
+      "crop": 0.85
+    },
+    "M_Gen_Crate": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Barrel": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.4
+    },
+    "M_Gen_Bunk": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Valve_Wheel": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.4
+    },
+    "M_Gen_Table": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Chair": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Sea_Chest": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Rope_Coil": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
+    },
+    "M_Gen_Sacks": {
+      "atlas": true,
+      "tile_m": 2.0,
+      "roughness": [
+        0.4,
+        0.85
+      ],
+      "bump": 3.0,
+      "metallic": 0.0
     }
   }
 }

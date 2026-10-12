@@ -97,7 +97,26 @@
     {"mesh": "SM_Barrel",        "cell": [7, 13], "offset": [-50, 130, 0]},
     {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [0, 0, 0], "collision": false},
     {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [60, -40, 0], "yaw": 120, "collision": false},
-    {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [-70, 50, 0], "yaw": 220, "collision": false}
+    {"mesh": "SM_Growth",        "cell": [8, 12], "offset": [-70, 50, 0], "yaw": 220, "collision": false},
+
+    {"mesh": "SM_Table",         "cell": [1, 0], "offset": [-105, 110, 0], "note": "the captain's table"},
+    {"mesh": "SM_Chair",         "cell": [1, 0], "offset": [-105, 40, 0], "yaw": 200},
+    {"mesh": "SM_Sea_Chest",     "cell": [1, 0], "offset": [-140, -130, 0], "yaw": 90},
+    {"mesh": "SM_Debris",        "cell": [3, 0], "offset": [40, 60, 0], "yaw": 30, "collision": false},
+    {"mesh": "SM_Table",         "cell": [6, 0], "offset": [0, 130, 0], "note": "the crew's mess table"},
+    {"mesh": "SM_Chair",         "cell": [6, 0], "offset": [-40, 60, 0], "yaw": 10},
+    {"mesh": "SM_Chair",         "cell": [6, 1], "offset": [40, -145, 0], "yaw": 170},
+    {"mesh": "SM_Chair",         "cell": [5, 1], "offset": [60, -40, 22], "yaw": 110, "roll": 90, "note": "knocked over"},
+    {"mesh": "SM_Sea_Chest",     "cell": [7, 0], "offset": [150, -130, 0], "yaw": 90},
+    {"mesh": "SM_Sea_Chest",     "cell": [5, 1], "offset": [150, 130, 0], "yaw": 90},
+    {"mesh": "SM_Debris",        "cell": [6, 1], "offset": [-60, -40, 0], "yaw": 200, "collision": false},
+    {"mesh": "SM_Debris",        "cell": [6, 3], "offset": [0, 40, 0], "yaw": 100, "collision": false},
+    {"mesh": "SM_Rope_Coil",     "cell": [3, 6], "offset": [0, 60, 300], "note": "on the mezzanine"},
+    {"mesh": "SM_Sacks",         "cell": [7, 12], "offset": [-120, 0, 0], "yaw": 90},
+    {"mesh": "SM_Sacks",         "cell": [9, 12], "offset": [110, -110, 0], "yaw": 15},
+    {"mesh": "SM_Rope_Coil",     "cell": [9, 12], "offset": [110, 60, 0]},
+    {"mesh": "SM_Debris",        "cell": [8, 11], "offset": [0, 0, 0], "yaw": 60, "collision": false},
+    {"mesh": "SM_Debris",        "cell": [9, 9], "offset": [-60, 0, 0], "yaw": 300, "collision": false}
   ],
   "player_start": {"cell": [1, 0], "offset": [0, 0, 170], "yaw": 0},
   "enemies": [

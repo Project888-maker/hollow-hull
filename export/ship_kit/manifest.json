@@ -211,6 +211,96 @@
       "roughness": 1.0,
       "metallic": 0.0,
       "emissive": 0.0
+    },
+    "M_Gen_Crate": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Barrel": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Bunk": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Valve_Wheel": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Table": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Chair": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Sea_Chest": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Rope_Coil": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
+    },
+    "M_Gen_Sacks": {
+      "base_color": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "emissive": 0.0
     }
   },
   "pieces": [
@@ -463,11 +553,10 @@
       "name": "SM_Valve_Wheel",
       "file": "SM_Valve_Wheel.fbx",
       "materials": [
-        "M_Brass",
-        "M_Steel_Dark"
+        "M_Gen_Valve_Wheel"
       ],
       "collision_hulls": 0,
-      "triangles": 464,
+      "triangles": 2500,
       "bounds_min_m": [
         -0.272,
         -0.2,
@@ -483,11 +572,10 @@
       "name": "SM_Crate",
       "file": "SM_Crate.fbx",
       "materials": [
-        "M_Wood_Wet",
-        "M_Steel_Dark"
+        "M_Gen_Crate"
       ],
       "collision_hulls": 1,
-      "triangles": 156,
+      "triangles": 1490,
       "bounds_min_m": [
         -0.5,
         -0.5,
@@ -503,11 +591,10 @@
       "name": "SM_Barrel",
       "file": "SM_Barrel.fbx",
       "materials": [
-        "M_Steel_Rust",
-        "M_Steel_Dark"
+        "M_Gen_Barrel"
       ],
       "collision_hulls": 1,
-      "triangles": 204,
+      "triangles": 2500,
       "bounds_min_m": [
         -0.31,
         -0.315,
@@ -516,21 +603,20 @@
       "bounds_max_m": [
         0.31,
         0.315,
-        0.9
+        0.899
       ]
     },
     {
       "name": "SM_Bunk",
       "file": "SM_Bunk.fbx",
       "materials": [
-        "M_Steel_Dark",
-        "M_Fabric"
+        "M_Gen_Bunk"
       ],
       "collision_hulls": 1,
-      "triangles": 120,
+      "triangles": 4999,
       "bounds_min_m": [
         -0.95,
-        -0.42,
+        -0.394,
         0.0
       ],
       "bounds_max_m": [
@@ -640,6 +726,122 @@
         2.0,
         2.0,
         0.0
+      ]
+    },
+    {
+      "name": "SM_Table",
+      "file": "SM_Table.fbx",
+      "materials": [
+        "M_Gen_Table"
+      ],
+      "collision_hulls": 1,
+      "triangles": 3000,
+      "bounds_min_m": [
+        -0.7,
+        -0.4,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.7,
+        0.4,
+        0.78
+      ]
+    },
+    {
+      "name": "SM_Chair",
+      "file": "SM_Chair.fbx",
+      "materials": [
+        "M_Gen_Chair"
+      ],
+      "collision_hulls": 1,
+      "triangles": 2000,
+      "bounds_min_m": [
+        -0.22,
+        -0.22,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.22,
+        0.22,
+        0.95
+      ]
+    },
+    {
+      "name": "SM_Sea_Chest",
+      "file": "SM_Sea_Chest.fbx",
+      "materials": [
+        "M_Gen_Sea_Chest"
+      ],
+      "collision_hulls": 1,
+      "triangles": 2999,
+      "bounds_min_m": [
+        -0.5,
+        -0.28,
+        0.0
+      ],
+      "bounds_max_m": [
+        0.5,
+        0.28,
+        0.77
+      ]
+    },
+    {
+      "name": "SM_Rope_Coil",
+      "file": "SM_Rope_Coil.fbx",
+      "materials": [
+        "M_Gen_Rope_Coil"
+      ],
+      "collision_hulls": 1,
+      "triangles": 2996,
+      "bounds_min_m": [
+        -0.46,
+        -0.46,
+        0.009
+      ],
+      "bounds_max_m": [
+        0.459,
+        0.46,
+        0.285
+      ]
+    },
+    {
+      "name": "SM_Sacks",
+      "file": "SM_Sacks.fbx",
+      "materials": [
+        "M_Gen_Sacks"
+      ],
+      "collision_hulls": 1,
+      "triangles": 3000,
+      "bounds_min_m": [
+        -0.728,
+        -0.35,
+        -0.02
+      ],
+      "bounds_max_m": [
+        0.728,
+        0.35,
+        0.66
+      ]
+    },
+    {
+      "name": "SM_Debris",
+      "file": "SM_Debris.fbx",
+      "materials": [
+        "M_Wood_Wet",
+        "M_Fabric",
+        "M_Steel_Rust"
+      ],
+      "collision_hulls": 0,
+      "triangles": 192,
+      "bounds_min_m": [
+        -0.656,
+        -1.263,
+        -0.005
+      ],
+      "bounds_max_m": [
+        0.776,
+        0.699,
+        0.12
       ]
     },
     {
