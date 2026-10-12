@@ -380,6 +380,14 @@ def _recover_from_hit(c, actor, t):
     c["hit_t"] = None
 
 
+def _move_sound(hero, name, loc, volume=1.0, pitch=1.0):
+    """A sound for one of hh_moves' abilities: ours by name, or the hero's "voice:" cue."""
+    if name.startswith("voice:"):
+        _play("voice " + name[6:], _voice(hero, name[6:]), loc, VOICE_VOLUME * volume)
+    else:
+        _play("ability " + name, _ours(name), loc, volume, pitch)
+
+
 def _nearest_foe(loc):
     """Where the closest living monster is (last frame), or None."""
     best, where = None, None
@@ -441,7 +449,7 @@ def _look(actor, t, player_pawn):
     if hh_moves and hh_moves.handles(c):
         foe = _nearest_foe(loc)
         near = foe is not None and math.hypot(foe.x - loc.x, foe.y - loc.y) < hh_moves.CALM_RADIUS_CM
-        hh_moves.tick(c, actor, t, attacking, near)
+        hh_moves.tick(c, actor, t, attacking, near, S["world"], lambda *a: _move_sound(hero, *a))
 
     # footsteps by distance walked; a heavier step on landing
     try:

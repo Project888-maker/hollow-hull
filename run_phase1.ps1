@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-12d (Revenant flinches, staggers, reloads and fidgets; realistic ship and Hollow)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-12e (Revenant attacks on Q, E and R; flinches, reloads and fidgets; realistic ship and Hollow)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -469,6 +469,7 @@ if ($r.PSObject.Properties["combat"]) {
     $keys = @($r.combat.controls | Where-Object { $_.PSObject.Properties["action"] } |
         ForEach-Object { "$($_.key) = $($_.action -replace '^IA_', '')" } | Select-Object -Unique)
     if ($keys.Count -gt 0) { Say "  attack keys: $($keys -join ', ')" "White" }
+    Say "  Revenant's abilities: Q = Obliterate (piercing shot), E = Mark Blast (throws close monsters back), R = Reckoning (ultimate)" "White"
 }
 if ($r.audio) {
     $a = $r.audio
