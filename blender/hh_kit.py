@@ -11,7 +11,9 @@ Grid rules (shared with level/layout.py and unreal/hh_setup.py):
   * pieces are symmetric across Y, because Unreal mirrors Y on FBX import
 """
 
+import json
 import math
+import os
 import random
 
 import bmesh
@@ -51,12 +53,67 @@ MATERIALS = {
 UV_METRES_PER_TILE = 2.0
 
 
+TEXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "textures")
+
+
+def _texture_spec(name):
+    try:
+        with open(os.path.join(TEXTURES, "materials.json"), encoding="utf-8") as f:
+            spec = json.load(f)["materials"].get(name)
+    except (OSError, ValueError):
+        return None
+    files = [os.path.join(TEXTURES, name, k + ".png") for k in ("basecolor", "orm", "normal")]
+    return (spec, files) if spec and all(os.path.exists(f) for f in files) else None
+
+
+def _textured(mat, spec, files):
+    """Same maps the game uses (tools/make_pbr.py), so previews show the real surfaces."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    uv = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    k = UV_METRES_PER_TILE / spec.get("tile_m", 2.0)
+    mapping.inputs["Scale"].default_value = (k, k, 1.0)
+    links.new(uv.outputs["UV"], mapping.inputs["Vector"])
+    images = {}
+    for kind, path in zip(("basecolor", "orm", "normal"), files):
+        node = nodes.new("ShaderNodeTexImage")
+        node.image = bpy.data.images.load(path, check_existing=True)
+        if kind != "basecolor":
+            node.image.colorspace_settings.name = "Non-Color"
+        links.new(mapping.outputs["Vector"], node.inputs["Vector"])
+        images[kind] = node
+    links.new(images["basecolor"].outputs["Color"], bsdf.inputs["Base Color"])
+    split = nodes.new("ShaderNodeSeparateColor")
+    links.new(images["orm"].outputs["Color"], split.inputs["Color"])
+    links.new(split.outputs["Green"], bsdf.inputs["Roughness"])
+    bsdf.inputs["Metallic"].default_value = 0.0
+    nmap = nodes.new("ShaderNodeNormalMap")
+    flip = nodes.new("ShaderNodeSeparateColor")  # the maps use Unreal's green-down convention
+    join = nodes.new("ShaderNodeCombineColor")
+    inv = nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    links.new(images["normal"].outputs["Color"], flip.inputs["Color"])
+    links.new(flip.outputs["Green"], inv.inputs[1])
+    links.new(flip.outputs["Red"], join.inputs["Red"])
+    links.new(inv.outputs["Value"], join.inputs["Green"])
+    links.new(flip.outputs["Blue"], join.inputs["Blue"])
+    links.new(join.outputs["Color"], nmap.inputs["Color"])
+    links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+
+
 def get_material(name):
     mat = bpy.data.materials.get(name)
     if mat:
         return mat
     color, rough, metal, emit = MATERIALS[name]
     mat = bpy.data.materials.new(name)
+    tex = _texture_spec(name)
+    if tex:
+        _textured(mat, *tex)
+        mat.diffuse_color = (*color, 1.0)
+        return mat
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs["Base Color"].default_value = (*color, 1.0)
     bsdf.inputs["Roughness"].default_value = rough

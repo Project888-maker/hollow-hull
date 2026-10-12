@@ -1,0 +1,12 @@
+{
+  "what": "Surface pictures for the kit's materials. tools/fal_textures.py asks fal.ai for each 'prompt' and saves textures/<material>/source.png; tools/make_pbr.py turns that into basecolor, normal and orm maps. 'tile_m' is how many metres one copy of the picture covers in the game; 'tint' multiplies the picture (1 = as generated); 'roughness' is [wettest, driest].",
+  "style": "seamless tileable texture, top-down orthographic photo, flat even lighting, no shadows, no perspective, highly detailed, photorealistic, 4k material scan",
+  "materials": {
+    "M_Flesh": {"prompt": "wet raw flesh, glistening dark red and purple muscle tissue with fine fibres, mucus sheen, small blood vessels", "tile_m": 2.0, "roughness": [0.12, 0.45], "bump": 7.0},
+    "M_Flesh_Dark": {"prompt": "dark rotting flesh, almost black maroon tissue, wrinkled and folded, wet slime in the folds", "tile_m": 2.5, "roughness": [0.18, 0.55], "bump": 8.0},
+    "M_Heart": {"prompt": "wet heart muscle surface, deep crimson myocardium with fat streaks and branching coronary veins, glossy", "tile_m": 1.5, "roughness": [0.08, 0.35], "bump": 6.0},
+    "M_Bone": {"prompt": "old weathered human bone surface, yellowed ivory with pores, hairline cracks and brown stains, dry", "tile_m": 1.0, "roughness": [0.45, 0.8], "bump": 5.0},
+    "M_Tooth": {"prompt": "stained yellow tooth enamel, smooth with fine vertical cracks and brown plaque near the edges", "tile_m": 0.5, "roughness": [0.25, 0.5], "bump": 3.0},
+    "M_Membrane": {"prompt": "thin translucent red membrane stretched tight, backlit, network of dark veins and capillaries, wet", "tile_m": 2.0, "roughness": [0.1, 0.3], "bump": 4.0}
+  }
+}

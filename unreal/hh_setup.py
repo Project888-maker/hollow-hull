@@ -38,6 +38,9 @@ LEVELS = [("L_TheHollow", "placements_the_hollow.json"), ("L_FloodedDeck", "plac
 PKG = "/Game/HollowHull"
 MESH_DIR = PKG + "/Meshes"
 MAT_DIR = PKG + "/Materials"
+TEX_DIR = PKG + "/Textures"
+TEXTURES = os.path.join(ROOT, "textures")  # textures/<material>/{basecolor,normal,orm}.png (tools/make_pbr.py)
+UV_METRES = 2.0  # one UV unit on the kit pieces (blender/hh_kit.py UV_METRES_PER_TILE)
 MAP_DIR = PKG + "/Maps"
 MAP_PATH = MAP_DIR + "/L_FloodedDeck"
 TAG = "HH_Generated"
@@ -228,6 +231,8 @@ def build_material_instances(manifest):
                                      unreal.MaterialInstanceConstantFactoryNew())
         if not created:
             instances[src_name] = mi
+            if src_name != "M_Water":
+                apply_textures(src_name, mi)
             continue
         parent = water if src_name == "M_Water" else master
         mel.set_material_instance_parent(mi, parent)
@@ -239,12 +244,74 @@ def build_material_instances(manifest):
             if spec["emissive"]:
                 mel.set_material_instance_vector_parameter_value(mi, "EmissiveColor", unreal.LinearColor(r, g, b, 1))
                 mel.set_material_instance_scalar_parameter_value(mi, "EmissiveStrength", spec["emissive"] * 4)
+        if parent is master:
+            apply_textures(src_name, mi)
         mel.update_material_instance(mi)
         eal.save_loaded_asset(mi)
         instances[src_name] = mi
         report["materials"].append(mi_name)
     log(f"material instances ready: {len(instances)}")
     return instances
+
+
+def _texture_specs():
+    path = os.path.join(TEXTURES, "materials.json")
+    if "texture_specs" not in ctx:
+        try:
+            with open(path, encoding="utf-8") as f:
+                ctx["texture_specs"] = json.load(f)["materials"]
+        except Exception:
+            ctx["texture_specs"] = {}
+    return ctx["texture_specs"]
+
+
+def _import_texture(path, name, kind):
+    t = unreal.AssetImportTask()
+    for prop, value in (("filename", path), ("destination_path", TEX_DIR), ("destination_name", name),
+                        ("automated", True), ("replace_existing", True), ("save", False)):
+        t.set_editor_property(prop, value)
+    asset_tools.import_asset_tasks([t])
+    tex = unreal.load_asset(f"{TEX_DIR}/{name}")
+    if tex is None:
+        raise RuntimeError(f"{os.path.basename(path)} did not import")
+    if kind == "normal":
+        set_prop(tex, "compression_settings", unreal.TextureCompressionSettings.TC_NORMALMAP)
+        set_prop(tex, "srgb", False)
+    elif kind == "orm":
+        set_prop(tex, "compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
+        set_prop(tex, "srgb", False)
+    eal.save_loaded_asset(tex)
+    return tex
+
+
+def apply_textures(src_name, mi):
+    """Plug textures/<material>/ into its material instance: colour, ORM (AO, roughness,
+    metallic) and normal map, tiled so one copy covers tile_m metres. Runs on every build,
+    so new or regenerated pictures always reach the game. No pictures: left as it is."""
+    spec = _texture_specs().get(src_name)
+    folder = os.path.join(TEXTURES, src_name)
+    files = {k: os.path.join(folder, f"{k}.png") for k in ("basecolor", "orm", "normal")}
+    if not spec or not all(os.path.exists(f) for f in files.values()):
+        return False
+    info = report.setdefault("textures", {})
+    try:
+        for kind, param in (("basecolor", "BaseColorTex"), ("orm", "ORMTex"), ("normal", "NormalTex")):
+            tex = _import_texture(files[kind], f"T_{src_name[2:]}_{kind}", kind)
+            mel.set_material_instance_texture_parameter_value(mi, param, tex)
+        tint = spec.get("tint", [1.0, 1.0, 1.0])
+        mel.set_material_instance_vector_parameter_value(mi, "BaseColor", unreal.LinearColor(*tint, 1))
+        mel.set_material_instance_scalar_parameter_value(mi, "Tiling", UV_METRES / spec.get("tile_m", 2.0))
+        mel.set_material_instance_scalar_parameter_value(mi, "Roughness", 1.0)
+        mel.set_material_instance_scalar_parameter_value(mi, "Metallic", 0.0)
+        mel.set_material_instance_scalar_parameter_value(mi, "AO", 1.0)
+        mel.update_material_instance(mi)
+        eal.save_loaded_asset(mi)
+        info[src_name] = "textured"
+        return True
+    except Exception as exc:
+        info[src_name] = f"failed: {exc}"[:200]
+        warn(f"{src_name}: textures not applied ({exc})")
+        return False
 
 
 # --- meshes --------------------------------------------------------------

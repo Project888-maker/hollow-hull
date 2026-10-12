@@ -65,6 +65,9 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 | `unreal/hh_audio.py` | Sound while you play: footsteps per floor, swings, hits, voices, each level's music |
 | `unreal/hh_world.py` | World events while you play: the fall into The Hollow when Sevarog dies, the beating heart, breathing in the walls |
 | `audio/make_audio.py` | Synthesises all music and sound effects into `audio/wav` |
+| `textures/materials.json` | Realistic surface pictures per material: the fal.ai prompt, how many metres one copy covers, wet-to-dry shine |
+| `tools/fal_textures.py` | Asks fal.ai for each picture (`FAL_KEY` from the environment) into `textures/<material>/source.png` |
+| `tools/make_pbr.py` | Makes each picture tile seamlessly and adds bump (normal) and shine (AO/roughness) maps; `hh_setup.py` plugs them into the game's materials, Blender previews use them too |
 | `unreal/hh_combat.py` | Phase 2: retargets Epic's Combat variant onto the Paragon heroes, places the enemies and a nav mesh |
 | `unreal/hh_screenshots.py` | Captures four review shots inside Unreal |
 | `tools/prepare_project.py` | Prepares the launcher-made project: plugins, startup map, `init_unreal.py` build hook |
