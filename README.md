@@ -65,6 +65,7 @@ pushes to this repo               CODEX_PHASE<N>.md, reports       wrong
 | `unreal/hh_audio.py` | Sound while you play: footsteps per floor, swings, hits, voices, each level's music |
 | `unreal/hh_moves.py` | Extra moves for Revenant from his own Paragon animations: Q/E/R ability attacks (Obliterate, Mark Blast, Reckoning) with cooldowns, flinch from the side he is hit, stagger on big hits, gun-spin reload after shooting, idle fidgets |
 | `unreal/hh_world.py` | World events while you play: the fall into The Hollow when Sevarog dies, the beating heart, breathing in the walls |
+| `unreal/hh_perf.py` | Speed during Play: shadows only on the lamps nearest the hero, graphics presets on F9 (Balanced, Fast, Full), frame rates per level and preset in `reports/phase1/perf_trace.json` |
 | `audio/make_audio.py` | Synthesises all music and sound effects into `audio/wav` |
 | `textures/materials.json` | Realistic surface pictures per material: the fal.ai prompt, how many metres one copy covers, wet-to-dry shine |
 | `tools/fal_textures.py` | Asks fal.ai for each picture (`FAL_KEY` from the environment) into `textures/<material>/source.png` |

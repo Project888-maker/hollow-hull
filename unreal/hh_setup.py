@@ -500,6 +500,8 @@ def spawn_lights(data):
         r, g, b = li["color"]
         comp.set_light_color(unreal.LinearColor(r, g, b, 1))
         comp.set_attenuation_radius(li["radius_cm"])
+        # movable: hh_perf turns shadows on only for the lamps near the hero during Play
+        comp.set_mobility(unreal.ComponentMobility.MOVABLE)
         set_prop(comp, "source_radius", 6.0)
         if li.get("shadows") is False:
             comp.set_cast_shadows(False)
@@ -763,7 +765,7 @@ state = {"i": 0, "wait": WARMUP_TICKS, "handle": None, "busy": False}
 def _pause_play_helpers(paused):
     """The play recorder and sound player (started by init_unreal.py) tick every frame;
     keep them out of the way while the build compiles and saves assets."""
-    for name in ("hh_trace", "hh_audio", "hh_world"):
+    for name in ("hh_trace", "hh_audio", "hh_world", "hh_perf"):
         mod = sys.modules.get(name)
         if mod is not None and isinstance(getattr(mod, "S", None), dict):
             mod.S["paused"] = paused

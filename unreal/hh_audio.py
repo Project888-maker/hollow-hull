@@ -31,6 +31,7 @@ import math
 import os
 import random
 import re
+import sys
 import time
 
 import unreal
@@ -560,10 +561,14 @@ def _tick(_dt):
     if S.get("paused") or S.get("busy"):
         return
     S["busy"] = True
+    t0 = time.perf_counter()
     try:
         _tick_inner()
     finally:
         S["busy"] = False
+        perf = sys.modules.get("hh_perf")  # frame-cost bookkeeping (reports/phase1/perf_trace.json)
+        if perf:
+            perf.add_python("sound and moves", time.perf_counter() - t0)
 
 
 def _tick_inner():

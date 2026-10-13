@@ -57,6 +57,13 @@ try:
 except Exception as exc:
     unreal.log_warning("[HH] world events not started: " + str(exc))
 
+# graphics presets (F9) and the frame-rate recorder (reports/phase1/perf_trace.json)
+try:
+    import hh_perf
+    hh_perf.start(os.path.join(HH_REPO, "reports", "phase1", "perf_trace.json"))
+except Exception as exc:
+    unreal.log_warning("[HH] graphics presets not started: " + str(exc))
+
 if os.path.exists(_request):
     os.remove(_request)
     os.environ["HH_REPO"] = HH_REPO

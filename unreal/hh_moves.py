@@ -173,7 +173,7 @@ def _keys():
     if M["keys"] is None:
         keys = {}
         for name in ("Q", "E", "R"):
-            for make in (lambda n: unreal.Key(key_name=n), _key_by_property):
+            for make in (_key_by_property, lambda n: unreal.Key(key_name=n)):  # 5.7 refuses the second
                 try:
                     keys[name] = make(name)
                     break

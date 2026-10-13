@@ -12,6 +12,7 @@ stop the game, it only goes quiet.
 import json
 import math
 import os
+import sys
 import time
 
 import unreal
@@ -244,6 +245,16 @@ def _write():
 def _tick(dt):
     if S.get("paused"):  # hh_setup is building
         return
+    t0 = time.perf_counter()
+    try:
+        _tick_inner(dt)
+    finally:
+        perf = sys.modules.get("hh_perf")  # frame-cost bookkeeping (reports/phase1/perf_trace.json)
+        if perf:
+            perf.add_python("play recorder", time.perf_counter() - t0)
+
+
+def _tick_inner(dt):
     try:
         S["max_dt"] = max(S["max_dt"], dt)
         now = time.time()

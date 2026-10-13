@@ -129,7 +129,7 @@ function Show-UnrealLog {
     }
 }
 
-Say "Hollow Hull scripts version: 2026-10-12e (Revenant attacks on Q, E and R; flinches, reloads and fidgets; realistic ship and Hollow)" "Magenta"
+Say "Hollow Hull scripts version: 2026-10-13a (faster: shadows only on nearby lamps, graphics presets on F9; Revenant's Q, E and R)" "Magenta"
 
 # --- 1. tools -------------------------------------------------------------
 Say "`n=== 1/5  Finding Blender and Unreal ==="
@@ -501,5 +501,6 @@ Say "Kill Sevarog and the floor gives way: you fall into The Hollow." "Magenta"
 Say "  The Hollow: the drop -> rib tunnel -> ossuary -> drowned gallery (deep water) -> throat -> heart chamber." "Cyan"
 Say "  To go straight there: Content Browser > HollowHull > Maps > double-click L_TheHollow, then Play." "Cyan"
 Say "Then tell Claude what broke, felt wrong, or looked too dark/bright." "Cyan"
-Say "While you play, recorders write reports\phase1\play_trace.json, audio_trace.json and world_trace.json - send them and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
+Say "Graphics: the game starts on 'Balanced'. Press F9 while playing to switch Balanced -> Fast -> Full; the screen shows each one's fps." "Cyan"
+Say "While you play, recorders write reports\phase1\play_trace.json, audio_trace.json, world_trace.json and perf_trace.json - send them and reports\phase1\combat_logic.txt to Claude with the other reports." "Cyan"
 Stop-Transcript | Out-Null
